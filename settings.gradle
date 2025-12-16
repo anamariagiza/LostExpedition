@@ -1,8 +1,15 @@
-plugins {
-  // Applies the foojay-resolver plugin to allow automatic download of JDKs.
-  id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+pluginManagement {
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+  plugins {
+    id "com.android.application" version "8.2.2"  // Era 7.4.2
+    id "org.jetbrains.kotlin.jvm" version "1.9.22"
+    id "org.jetbrains.kotlin.android" version "1.9.22"
+  }
 }
-// A list of which subprojects to load as part of the same larger project.
-// You can remove Strings from the list and reload the Gradle project
-// if you want to temporarily disable a subproject.
-include 'lwjgl3', 'android', 'core'
+
+// A list of which subprojects to load.
+include 'core', 'lwjgl3', 'android'
