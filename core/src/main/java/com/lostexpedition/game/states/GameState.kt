@@ -745,7 +745,7 @@ class GameState(
         batch.end()
 
         // Render fog of war (handles its own batch state)
-        //fogOfWar?.render(batch, camera)
+        fogOfWar?.render(batch, camera)
 
         // Render UI (handles its own batch state)
         renderUI(batch)
