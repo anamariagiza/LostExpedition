@@ -85,7 +85,7 @@ class MenuState(refLink: RefLinks) : State(refLink) {
 
     private fun startNewGame() {
         println("Starting new game...")
-        refLink.setState(GameState(refLink, 1))
+        refLink.setState(GameState(refLink, 0))
     }
 
     private fun loadGame() {
