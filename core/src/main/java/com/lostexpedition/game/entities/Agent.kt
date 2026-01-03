@@ -7,9 +7,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.tiles.Tile
 import com.lostexpedition.game.utils.RefLinks
-
 import kotlin.math.abs
-
 
 class Agent(
     refLink: RefLinks,
@@ -20,7 +18,7 @@ class Agent(
     private val isBoss: Boolean = false
 ) : Entity(refLink, startX, startY, 64, 64) {
 
-    var health: Int = if (isBoss) 150 else 75
+    override var health: Int = if (isBoss) 150 else 75
     private val maxHealth = health
 
     private val normalSpeed = 1.5f
@@ -82,8 +80,6 @@ class Agent(
         if (attackCooldown > 0) {
             attackCooldown -= Gdx.graphics.deltaTime
         }
-
-        bounds.setPosition(x, y)
     }
 
     private fun updatePatrolMode() {
@@ -171,7 +167,9 @@ class Agent(
                     height.toFloat()
                 )
 
-                if (testBounds.overlaps(entity.bounds)) {
+                // ✅ FIX: Convertim entity.bounds la Rectangle pentru comparație
+                val entityRect = entity.bounds.toRectangle()
+                if (testBounds.overlaps(entityRect)) {
                     return true
                 }
             }
@@ -195,7 +193,9 @@ class Agent(
             height.toFloat()
         )
 
-        if (attackBounds.overlaps(player.bounds)) {
+        // ✅ FIX: Convertim player.bounds la Rectangle pentru comparație
+        val playerRect = player.bounds.toRectangle()
+        if (attackBounds.overlaps(playerRect)) {
             player.takeDamage(attackDamage)
         }
     }

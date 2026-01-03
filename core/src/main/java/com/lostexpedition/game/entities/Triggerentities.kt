@@ -37,7 +37,7 @@ class Chest(
                 }
             }
         }
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -60,7 +60,7 @@ class CaveEntrance(
 ) : Entity(refLink, x, y, width, height) {
 
     override fun update() {
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -78,7 +78,7 @@ class LevelExit(
 ) : Entity(refLink, x, y, width, height) {
 
     override fun update() {
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -107,7 +107,7 @@ class PuzzleTrigger(
                 refLink.setState(PuzzleState(refLink, puzzleId))
             }
         }
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {

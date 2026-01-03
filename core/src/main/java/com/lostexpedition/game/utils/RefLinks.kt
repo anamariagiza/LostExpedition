@@ -19,6 +19,7 @@ class RefLinks(val game: LostExpeditionGame) {
         GameCamera(this, Gdx.graphics.width, Gdx.graphics.height)
     }
 
+    // ✅ FIX: Constructorul TouchController acceptă acum lățimea și înălțimea, nu RefLinks
     val touchController: TouchController by lazy {
         TouchController(Gdx.graphics.width, Gdx.graphics.height)
     }
@@ -43,8 +44,6 @@ class RefLinks(val game: LostExpeditionGame) {
     }
 
     fun getLevel1State(): GameState? = level1State
-
-    // ȘTERS: fun getGameState() - se generează automat!
 
     val width: Int get() = Gdx.graphics.width
     val height: Int get() = Gdx.graphics.height

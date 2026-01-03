@@ -4,7 +4,6 @@ import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.lostexpedition.game.graphics.Assets
-import com.lostexpedition.game.tiles.Tile
 import com.lostexpedition.game.utils.RefLinks
 
 // ==================== ANIMAL ====================
@@ -47,8 +46,7 @@ class Animal(
         if (x <= leftBound || x >= rightBound) {
             velocityX = -velocityX
         }
-
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -81,16 +79,6 @@ class Key(
     val associatedPuzzleId: Int
 ) : Entity(refLink, x, y, 32, 32) {
 
-    enum class KeyType {
-        LEVEL_KEY,
-        DOOR_KEY_1,
-        DOOR_KEY_2,
-        DOOR_KEY_3,
-        DOOR_KEY_4,
-        DOOR_KEY_5,
-        FINAL_KEY
-    }
-
     private val bobSpeed = 2f
     private val bobAmount = 5f
     private var bobTime = 0f
@@ -99,7 +87,7 @@ class Key(
     override fun update() {
         bobTime += com.badlogic.gdx.Gdx.graphics.deltaTime
         y = originalY + kotlin.math.sin(bobTime * bobSpeed) * bobAmount
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -131,7 +119,7 @@ class Talisman(
         glowTime += com.badlogic.gdx.Gdx.graphics.deltaTime
 
         y = originalY + kotlin.math.sin(bobTime * bobSpeed) * bobAmount
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {

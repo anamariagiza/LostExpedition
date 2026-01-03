@@ -15,8 +15,9 @@ dependencies {
   api "com.badlogicgames.gdx:gdx:$gdxVersion"
   api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
   api "org.jetbrains.kotlin:kotlin-stdlib"
+    implementation 'androidx.constraintlayout:constraintlayout-core:1.1.1'
 
-  if(project.hasProperty('enableGraalNative') && enableGraalNative == 'true') {
+    if(project.hasProperty('enableGraalNative') && enableGraalNative == 'true') {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
   }
 }

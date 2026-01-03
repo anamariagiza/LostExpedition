@@ -129,10 +129,12 @@ class GameState(
                     playerStartX = 3f * Tile.TILE_WIDTH
                     playerStartY = 3f * Tile.TILE_HEIGHT
                 }
+
                 1 -> {
                     playerStartX = 2f * Tile.TILE_WIDTH
                     playerStartY = 26f * Tile.TILE_HEIGHT
                 }
+
                 2 -> {
                     playerStartX = 37f * Tile.TILE_WIDTH
                     playerStartY = 57f * Tile.TILE_HEIGHT
@@ -185,39 +187,80 @@ class GameState(
     }
 
     private fun loadLevel1Entities() {
-        entities.add(Animal(refLink, 53f * Tile.TILE_WIDTH, 5f * Tile.TILE_HEIGHT,
-            51f * Tile.TILE_WIDTH, 56f * Tile.TILE_WIDTH, Animal.AnimalType.JAGUAR))
-        entities.add(Animal(refLink, 10f * Tile.TILE_WIDTH, 36f * Tile.TILE_HEIGHT,
-            8f * Tile.TILE_WIDTH, 11f * Tile.TILE_WIDTH, Animal.AnimalType.MONKEY))
-        entities.add(Animal(refLink, 89f * Tile.TILE_WIDTH, 29f * Tile.TILE_HEIGHT,
-            88f * Tile.TILE_WIDTH, 91f * Tile.TILE_WIDTH, Animal.AnimalType.MONKEY))
-        entities.add(Animal(refLink, 84f * Tile.TILE_WIDTH, 57f * Tile.TILE_HEIGHT,
-            82f * Tile.TILE_WIDTH, 85f * Tile.TILE_WIDTH, Animal.AnimalType.BAT))
+        entities.add(
+            Animal(
+                refLink, 53f * Tile.TILE_WIDTH, 5f * Tile.TILE_HEIGHT,
+                51f * Tile.TILE_WIDTH, 56f * Tile.TILE_WIDTH, Animal.AnimalType.JAGUAR
+            )
+        )
+        entities.add(
+            Animal(
+                refLink, 10f * Tile.TILE_WIDTH, 36f * Tile.TILE_HEIGHT,
+                8f * Tile.TILE_WIDTH, 11f * Tile.TILE_WIDTH, Animal.AnimalType.MONKEY
+            )
+        )
+        entities.add(
+            Animal(
+                refLink, 89f * Tile.TILE_WIDTH, 29f * Tile.TILE_HEIGHT,
+                88f * Tile.TILE_WIDTH, 91f * Tile.TILE_WIDTH, Animal.AnimalType.MONKEY
+            )
+        )
+        entities.add(
+            Animal(
+                refLink, 84f * Tile.TILE_WIDTH, 57f * Tile.TILE_HEIGHT,
+                82f * Tile.TILE_WIDTH, 85f * Tile.TILE_WIDTH, Animal.AnimalType.BAT
+            )
+        )
 
-        entities.add(Trap(refLink, 66f * Tile.TILE_WIDTH, 31f * Tile.TILE_HEIGHT,
-            Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }))
-        entities.add(Trap(refLink, 67f * Tile.TILE_WIDTH, 38f * Tile.TILE_HEIGHT,
-            Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }))
-        entities.add(Trap(refLink, 66f * Tile.TILE_WIDTH, 45f * Tile.TILE_HEIGHT,
-            Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }))
+        entities.add(
+            Trap(
+                refLink, 66f * Tile.TILE_WIDTH, 31f * Tile.TILE_HEIGHT,
+                Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) })
+        )
+        entities.add(
+            Trap(
+                refLink, 67f * Tile.TILE_WIDTH, 38f * Tile.TILE_HEIGHT,
+                Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) })
+        )
+        entities.add(
+            Trap(
+                refLink, 66f * Tile.TILE_WIDTH, 45f * Tile.TILE_HEIGHT,
+                Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) })
+        )
 
         caveGuardianNPC = NPC(refLink, 93f * Tile.TILE_WIDTH, 92f * Tile.TILE_HEIGHT)
         entities.add(caveGuardianNPC!!)
 
-        entities.add(Talisman(refLink, 45f * Tile.TILE_WIDTH, 52f * Tile.TILE_HEIGHT,
-            Assets.talismanImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }))
+        entities.add(
+            Talisman(
+                refLink, 45f * Tile.TILE_WIDTH, 52f * Tile.TILE_HEIGHT,
+                Assets.talismanImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) })
+        )
 
-        caveEntrance = CaveEntrance(refLink, 91f * Tile.TILE_WIDTH, 88f * Tile.TILE_HEIGHT,
-            Tile.TILE_WIDTH * 2, Tile.TILE_HEIGHT * 2)
+        caveEntrance = CaveEntrance(
+            refLink, 91f * Tile.TILE_WIDTH, 88f * Tile.TILE_HEIGHT,
+            Tile.TILE_WIDTH * 2, Tile.TILE_HEIGHT * 2
+        )
         entities.add(caveEntrance!!)
 
         if (!hasDoorKeys[0]) {
-            entities.add(Key(refLink, 12f * Tile.TILE_WIDTH, 85f * Tile.TILE_HEIGHT,
-                Assets.keyImage, 0))
+            entities.add(
+                Key(
+                    refLink, 12f * Tile.TILE_WIDTH, 85f * Tile.TILE_HEIGHT,
+                    Assets.keyImage, 0
+                )
+            )
         }
 
-        val woodSign1 = DecorativeObject(refLink, 2f * Tile.TILE_WIDTH, Tile.TILE_HEIGHT.toFloat(),
-            64, 64, Assets.woodSignImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true)
+        val woodSign1 = DecorativeObject(
+            refLink,
+            2f * Tile.TILE_WIDTH,
+            Tile.TILE_HEIGHT.toFloat(),
+            64,
+            64,
+            Assets.woodSignImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) },
+            true
+        )
         woodSign1.setDialogueMessage("Adună cheia și talismanul Lunii.")
         entities.add(woodSign1)
     }
@@ -231,45 +274,89 @@ class GameState(
         for (coords in puzzleTableCoordinates) {
             val pixelX = coords[0] * Tile.TILE_WIDTH
             val pixelY = coords[1] * Tile.TILE_HEIGHT - 24
-            entities.add(DecorativeObject(refLink, pixelX.toFloat(), pixelY.toFloat(),
-                96, 48, Assets.puzzleTableImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true))
+            entities.add(
+                DecorativeObject(
+                    refLink,
+                    pixelX.toFloat(),
+                    pixelY.toFloat(),
+                    96,
+                    48,
+                    Assets.puzzleTableImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) },
+                    true
+                )
+            )
         }
 
         if (!isPuzzleSolved(1)) {
-            entities.add(PuzzleTrigger(refLink, 19f * Tile.TILE_WIDTH, 20f * Tile.TILE_HEIGHT,
-                Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 1))
+            entities.add(
+                PuzzleTrigger(
+                    refLink, 19f * Tile.TILE_WIDTH, 20f * Tile.TILE_HEIGHT,
+                    Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 1
+                )
+            )
         }
         if (!isPuzzleSolved(2)) {
-            entities.add(PuzzleTrigger(refLink, 36f * Tile.TILE_WIDTH, 14f * Tile.TILE_HEIGHT,
-                Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 2))
+            entities.add(
+                PuzzleTrigger(
+                    refLink, 36f * Tile.TILE_WIDTH, 14f * Tile.TILE_HEIGHT,
+                    Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 2
+                )
+            )
         }
         if (!isPuzzleSolved(3)) {
-            entities.add(PuzzleTrigger(refLink, 53f * Tile.TILE_WIDTH, 20f * Tile.TILE_HEIGHT,
-                Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 3))
+            entities.add(
+                PuzzleTrigger(
+                    refLink, 53f * Tile.TILE_WIDTH, 20f * Tile.TILE_HEIGHT,
+                    Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 3
+                )
+            )
         }
         if (!isPuzzleSolved(4)) {
-            entities.add(PuzzleTrigger(refLink, 70f * Tile.TILE_WIDTH, 11f * Tile.TILE_HEIGHT,
-                Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 4))
+            entities.add(
+                PuzzleTrigger(
+                    refLink, 70f * Tile.TILE_WIDTH, 11f * Tile.TILE_HEIGHT,
+                    Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 4
+                )
+            )
         }
         if (!isPuzzleSolved(5)) {
-            entities.add(PuzzleTrigger(refLink, 87f * Tile.TILE_WIDTH, 20f * Tile.TILE_HEIGHT,
-                Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 5))
+            entities.add(
+                PuzzleTrigger(
+                    refLink, 87f * Tile.TILE_WIDTH, 20f * Tile.TILE_HEIGHT,
+                    Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 5
+                )
+            )
         }
 
-        entities.add(LevelExit(refLink, 110f * Tile.TILE_WIDTH, 14f * Tile.TILE_HEIGHT,
-            Tile.TILE_WIDTH * 2, Tile.TILE_HEIGHT))
+        entities.add(
+            LevelExit(
+                refLink, 110f * Tile.TILE_WIDTH, 14f * Tile.TILE_HEIGHT,
+                Tile.TILE_WIDTH * 2, Tile.TILE_HEIGHT
+            )
+        )
 
         for (i in 1..TOTAL_PUZZLES_LEVEL2) {
             if (isPuzzleSolved(i)) {
                 val keyTileX = puzzleKeyPositions[i - 1][0]
                 val keyTileY = puzzleKeyPositions[i - 1][1]
-                entities.add(Key(refLink, keyTileX.toFloat() * Tile.TILE_WIDTH,
-                    keyTileY.toFloat() * Tile.TILE_HEIGHT, Assets.keyImage, i))
+                entities.add(
+                    Key(
+                        refLink, keyTileX.toFloat() * Tile.TILE_WIDTH,
+                        keyTileY.toFloat() * Tile.TILE_HEIGHT, Assets.keyImage, i
+                    )
+                )
             }
         }
 
-        val woodSign2 = DecorativeObject(refLink, 3f * Tile.TILE_WIDTH, 25f * Tile.TILE_HEIGHT,
-            64, 64, Assets.woodSignImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true)
+        val woodSign2 = DecorativeObject(
+            refLink,
+            3f * Tile.TILE_WIDTH,
+            25f * Tile.TILE_HEIGHT,
+            64,
+            64,
+            Assets.woodSignImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) },
+            true
+        )
         woodSign2.setDialogueMessage("Rezolvă puzzle-urile.")
         entities.add(woodSign2)
     }
@@ -277,32 +364,48 @@ class GameState(
     private fun loadLevel3Entities() {
         arenaTraps.clear()
 
-        entities.add(DecorativeObject(refLink, 75f * Tile.TILE_WIDTH, 26f * Tile.TILE_HEIGHT,
-            Tile.TILE_WIDTH, Tile.TILE_HEIGHT, Assets.puzzleTableImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true))
+        entities.add(
+            DecorativeObject(
+                refLink,
+                75f * Tile.TILE_WIDTH,
+                26f * Tile.TILE_HEIGHT,
+                Tile.TILE_WIDTH,
+                Tile.TILE_HEIGHT,
+                Assets.puzzleTableImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) },
+                true
+            )
+        )
 
-        entities.add(PuzzleTrigger(refLink, 75f * Tile.TILE_WIDTH, 26f * Tile.TILE_HEIGHT,
-            Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 99))
+        entities.add(
+            PuzzleTrigger(
+                refLink, 75f * Tile.TILE_WIDTH, 26f * Tile.TILE_HEIGHT,
+                Tile.TILE_WIDTH, Tile.TILE_HEIGHT, 99
+            )
+        )
 
-        finalChest = Chest(refLink, 37f * Tile.TILE_WIDTH, 3f * Tile.TILE_HEIGHT,
-            Tile.TILE_WIDTH, Tile.TILE_HEIGHT)
+        finalChest = Chest(
+            refLink, 37f * Tile.TILE_WIDTH, 3f * Tile.TILE_HEIGHT,
+            Tile.TILE_WIDTH, Tile.TILE_HEIGHT
+        )
         finalChest?.setCanInteract(false)
         entities.add(finalChest!!)
 
         val trapTiles = arrayOf(
-            intArrayOf(29,22), intArrayOf(30,22), intArrayOf(31,22), intArrayOf(32,22),
-            intArrayOf(29,23), intArrayOf(30,23), intArrayOf(31,23), intArrayOf(32,23),
-            intArrayOf(29,36), intArrayOf(30,36), intArrayOf(31,36), intArrayOf(32,36),
-            intArrayOf(29,37), intArrayOf(30,37), intArrayOf(31,37), intArrayOf(32,37),
-            intArrayOf(38,29), intArrayOf(39,29), intArrayOf(40,29), intArrayOf(41,29),
-            intArrayOf(38,30), intArrayOf(39,30), intArrayOf(40,30), intArrayOf(41,30),
-            intArrayOf(47,22), intArrayOf(48,22), intArrayOf(49,22), intArrayOf(50,22),
-            intArrayOf(47,23), intArrayOf(48,23), intArrayOf(49,23), intArrayOf(50,23),
-            intArrayOf(47,36), intArrayOf(48,36), intArrayOf(49,36), intArrayOf(50,36),
-            intArrayOf(47,37), intArrayOf(48,37), intArrayOf(49,37), intArrayOf(50,37)
+            intArrayOf(29, 22), intArrayOf(30, 22), intArrayOf(31, 22), intArrayOf(32, 22),
+            intArrayOf(29, 23), intArrayOf(30, 23), intArrayOf(31, 23), intArrayOf(32, 23),
+            intArrayOf(29, 36), intArrayOf(30, 36), intArrayOf(31, 36), intArrayOf(32, 36),
+            intArrayOf(29, 37), intArrayOf(30, 37), intArrayOf(31, 37), intArrayOf(32, 37),
+            intArrayOf(38, 29), intArrayOf(39, 29), intArrayOf(40, 29), intArrayOf(41, 29),
+            intArrayOf(38, 30), intArrayOf(39, 30), intArrayOf(40, 30), intArrayOf(41, 30),
+            intArrayOf(47, 22), intArrayOf(48, 22), intArrayOf(49, 22), intArrayOf(50, 22),
+            intArrayOf(47, 23), intArrayOf(48, 23), intArrayOf(49, 23), intArrayOf(50, 23),
+            intArrayOf(47, 36), intArrayOf(48, 36), intArrayOf(49, 36), intArrayOf(50, 36),
+            intArrayOf(47, 37), intArrayOf(48, 37), intArrayOf(49, 37), intArrayOf(50, 37)
         )
 
         for (pos in trapTiles) {
-            val trap = Trap(refLink, pos[0].toFloat() * Tile.TILE_WIDTH,
+            val trap = Trap(
+                refLink, pos[0].toFloat() * Tile.TILE_WIDTH,
                 pos[1].toFloat() * Tile.TILE_HEIGHT,
                 Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) })
             entities.add(trap)
@@ -322,25 +425,39 @@ class GameState(
 
             for (y in startY..endY) {
                 for (x in startX..endX) {
-                    entities.add(TrapTrigger(refLink, x.toFloat() * Tile.TILE_WIDTH,
-                        y.toFloat() * Tile.TILE_HEIGHT, Tile.TILE_WIDTH, Tile.TILE_HEIGHT))
+                    entities.add(
+                        TrapTrigger(
+                            refLink, x.toFloat() * Tile.TILE_WIDTH,
+                            y.toFloat() * Tile.TILE_HEIGHT, Tile.TILE_WIDTH, Tile.TILE_HEIGHT
+                        )
+                    )
                 }
             }
         }
 
-        finalBoss = Agent(refLink, 36f * Tile.TILE_WIDTH, 22f * Tile.TILE_HEIGHT,
-            36f * Tile.TILE_WIDTH, 43f * Tile.TILE_WIDTH, true)
+        finalBoss = Agent(
+            refLink, 36f * Tile.TILE_WIDTH, 22f * Tile.TILE_HEIGHT,
+            36f * Tile.TILE_WIDTH, 43f * Tile.TILE_WIDTH, true
+        )
         entities.add(finalBoss!!)
 
-        val woodSign3 = DecorativeObject(refLink, 37f * Tile.TILE_WIDTH, 56f * Tile.TILE_HEIGHT,
-            64, 64, Assets.woodSignImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true)
+        val woodSign3 = DecorativeObject(
+            refLink,
+            37f * Tile.TILE_WIDTH,
+            56f * Tile.TILE_HEIGHT,
+            64,
+            64,
+            Assets.woodSignImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) },
+            true
+        )
         woodSign3.setDialogueMessage("Învinge inamicul.")
         entities.add(woodSign3)
     }
 
     override fun update(delta: Float) {
         if (collectionMessage != null &&
-            System.currentTimeMillis() - collectionMessageTime > MESSAGE_DURATION_MS) {
+            System.currentTimeMillis() - collectionMessageTime > MESSAGE_DURATION_MS
+        ) {
             collectionMessage = null
         }
 
@@ -389,7 +506,8 @@ class GameState(
 
         caveEntrance?.let { entrance ->
             if (player.bounds.overlaps(entrance.bounds) &&
-                Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                Gdx.input.isKeyJustPressed(Input.Keys.E)
+            ) {
                 if (caveEntranceUnlocked && hasDoorKeys[0]) {
                     passToLevel2()
                 } else if (!caveEntranceUnlocked) {
@@ -448,7 +566,8 @@ class GameState(
         }
 
         if (trapsTriggered &&
-            System.currentTimeMillis() - trapActivationTime >= GLOBAL_ACTIVATION_DELAY_MS) {
+            System.currentTimeMillis() - trapActivationTime >= GLOBAL_ACTIVATION_DELAY_MS
+        ) {
             for (trap in arenaTraps) {
                 trap.setActive(true)
             }
@@ -488,6 +607,7 @@ class GameState(
                         iterator.remove()
                     }
                 }
+
                 is Talisman -> {
                     if (entity.bounds.overlaps(player.bounds)) {
                         hasTalisman = true
@@ -496,11 +616,13 @@ class GameState(
                         iterator.remove()
                     }
                 }
+
                 is Animal -> {
                     if (player.bounds.overlaps(entity.bounds)) {
                         playerInContactWithAnimal = true
                     }
                 }
+
                 is Trap -> {
                     if (currentLevelIndex == 0 || entity.isActive()) {
                         if (player.bounds.overlaps(entity.bounds)) {
@@ -519,6 +641,7 @@ class GameState(
                         }
                     }
                 }
+
                 is PuzzleTrigger -> {
                     if (isPuzzleSolved(entity.getPuzzleId())) {
                         iterator.remove()
@@ -549,7 +672,8 @@ class GameState(
         for (i in puzzleDoorPositions.indices) {
             val doorCoords = puzzleDoorPositions[i]
             if (abs(playerTileX - doorCoords[0]) <= interactionRange &&
-                abs(playerTileY - doorCoords[1]) <= interactionRange) {
+                abs(playerTileY - doorCoords[1]) <= interactionRange
+            ) {
 
                 if (currentMap.getTile(doorCoords[0], doorCoords[1]).isSolid) {
                     if (hasDoorKeys[i]) {
@@ -569,10 +693,30 @@ class GameState(
         if (doorIndex in hasDoorKeys.indices && hasDoorKeys[doorIndex]) {
             val doorCoords = puzzleDoorPositions[doorIndex]
             if (doorCoords.size == 8) {
-                currentMap.changeTileGid(doorCoords[0], doorCoords[1], Tile.DOOR_OPEN_TOP_LEFT_GID, 1)
-                currentMap.changeTileGid(doorCoords[2], doorCoords[3], Tile.DOOR_OPEN_TOP_RIGHT_GID, 1)
-                currentMap.changeTileGid(doorCoords[4], doorCoords[5], Tile.DOOR_OPEN_BOTTOM_LEFT_GID, 1)
-                currentMap.changeTileGid(doorCoords[6], doorCoords[7], Tile.DOOR_OPEN_BOTTOM_RIGHT_GID, 1)
+                currentMap.changeTileGid(
+                    doorCoords[0],
+                    doorCoords[1],
+                    Tile.DOOR_OPEN_TOP_LEFT_GID,
+                    1
+                )
+                currentMap.changeTileGid(
+                    doorCoords[2],
+                    doorCoords[3],
+                    Tile.DOOR_OPEN_TOP_RIGHT_GID,
+                    1
+                )
+                currentMap.changeTileGid(
+                    doorCoords[4],
+                    doorCoords[5],
+                    Tile.DOOR_OPEN_BOTTOM_LEFT_GID,
+                    1
+                )
+                currentMap.changeTileGid(
+                    doorCoords[6],
+                    doorCoords[7],
+                    Tile.DOOR_OPEN_BOTTOM_RIGHT_GID,
+                    1
+                )
 
                 hasDoorKeys[doorIndex] = false
                 collectionMessage = "Ușa s-a deschis!"
@@ -646,8 +790,12 @@ class GameState(
             if (puzzleId - 1 < puzzleKeyPositions.size) {
                 val keyTileX = puzzleKeyPositions[puzzleId - 1][0]
                 val keyTileY = puzzleKeyPositions[puzzleId - 1][1]
-                entities.add(Key(refLink, keyTileX.toFloat() * Tile.TILE_WIDTH,
-                    keyTileY.toFloat() * Tile.TILE_HEIGHT, Assets.keyImage, puzzleId))
+                entities.add(
+                    Key(
+                        refLink, keyTileX.toFloat() * Tile.TILE_WIDTH,
+                        keyTileY.toFloat() * Tile.TILE_HEIGHT, Assets.keyImage, puzzleId
+                    )
+                )
             }
         }
     }
@@ -749,18 +897,35 @@ class GameState(
 
         // Render UI (handles its own batch state)
         renderUI(batch)
+
+        // Draw minimap
+        drawMiniMap(batch)
+
+        // ✅ ADAUGĂ ASTA LA SFÂRȘIT (ultimul lucru):
+        // Draw TouchController (MUST be last, on top of everything)
+        refLink.touchController?.draw()  // Trebuie să fie ULTIMUL lucru desenat
     }
 
     private fun renderUI(batch: SpriteBatch) {
         // Set up orthographic projection for UI
-        batch.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+        batch.projectionMatrix.setToOrtho2D(
+            0f,
+            0f,
+            Gdx.graphics.width.toFloat(),
+            Gdx.graphics.height.toFloat()
+        )
 
         // Draw health bar (uses ShapeRenderer, needs batch ended)
         if (batch.isDrawing) {
             batch.end()
         }
 
-        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+        shapeRenderer.projectionMatrix.setToOrtho2D(
+            0f,
+            0f,
+            Gdx.graphics.width.toFloat(),
+            Gdx.graphics.height.toFloat()
+        )
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
 
         // Health bar background
@@ -814,7 +979,12 @@ class GameState(
 
         // Wood sign message (needs ShapeRenderer for background)
         woodSignMessage?.let { msg ->
-            shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+            shapeRenderer.projectionMatrix.setToOrtho2D(
+                0f,
+                0f,
+                Gdx.graphics.width.toFloat(),
+                Gdx.graphics.height.toFloat()
+            )
             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
             shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)
             shapeRenderer.rect(
@@ -849,7 +1019,12 @@ class GameState(
         val y = Gdx.graphics.height - 30f
 
         batch.end()
-        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+        shapeRenderer.projectionMatrix.setToOrtho2D(
+            0f,
+            0f,
+            Gdx.graphics.width.toFloat(),
+            Gdx.graphics.height.toFloat()
+        )
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
         shapeRenderer.color = Color.DARK_GRAY
         shapeRenderer.rect(x, y, barWidth, barHeight)
@@ -876,23 +1051,31 @@ class GameState(
         val mapPixelHeight = currentMap.height * Tile.TILE_HEIGHT
         val miniMapWidth = (mapPixelWidth.toFloat() / mapPixelHeight) * miniMapHeight
         val padding = 10f
-        val miniMapX = Gdx.graphics.width - miniMapWidth - padding
-        val miniMapY = padding
 
-        // Ensure batch is ended before using ShapeRenderer
-        if (batch.isDrawing) {
+        // ✅ DESKTOP EXACT: SUS-DREAPTA (în LibGDX Y=0 e JOS, deci padding din JOS pentru "sus")
+        val miniMapX = Gdx.graphics.width - miniMapWidth - padding
+        val miniMapY = Gdx.graphics.height - miniMapHeight - padding  // TOP
+
+        // End batch if drawing
+        val wasBatchDrawing = batch.isDrawing
+        if (wasBatchDrawing) {
             batch.end()
         }
 
-        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+        shapeRenderer.projectionMatrix.setToOrtho2D(
+            0f,
+            0f,
+            Gdx.graphics.width.toFloat(),
+            Gdx.graphics.height.toFloat()
+        )
 
-        // Minimap background
+        // Background - EXACT ca desktop
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-        shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)
+        shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)  // 180/255 ≈ 0.7
         shapeRenderer.rect(miniMapX, miniMapY, miniMapWidth, miniMapHeight)
         shapeRenderer.end()
 
-        // Minimap border
+        // Border
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
         shapeRenderer.color = Color.WHITE
         shapeRenderer.rect(miniMapX, miniMapY, miniMapWidth, miniMapHeight)
@@ -901,48 +1084,88 @@ class GameState(
         val mapScaleX = miniMapWidth / mapPixelWidth
         val mapScaleY = miniMapHeight / mapPixelHeight
 
-        // Draw map tiles
+        // ✅ TILES - EXACT CA DESKTOP
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+
         for (yTile in 0 until currentMap.height) {
             for (xTile in 0 until currentMap.width) {
-                val tile = currentMap.getTile(xTile, yTile)
-                if (tile.isSolid) {
-                    shapeRenderer.color = when (currentLevelIndex) {
-                        0 -> Color(0.13f, 0.55f, 0.13f, 1f)
-                        1 -> Color(0.4f, 0.4f, 0.4f, 1f)
-                        else -> Color(0.34f, 0.2f, 0.14f, 1f)
+
+                when (currentLevelIndex) {
+                    0 -> {
+                        // ========== NIVEL 1 - EXACT CA DESKTOP ==========
+                        // Desktop logic: check specific GIDs for path/grass
+                        // Aici desenăm DOAR tile-urile solide cu culorile desktop
+                        val tile = currentMap.getTile(xTile, yTile)
+                        if (tile != null && tile.isSolid) {
+                            // GRASS GREEN - EXACT: RGB(34, 139, 34)
+                            shapeRenderer.color = Color(34f / 255f, 139f / 255f, 34f / 255f, 1f)
+                            shapeRenderer.rect(
+                                miniMapX + xTile * Tile.TILE_WIDTH * mapScaleX,
+                                miniMapY + yTile * Tile.TILE_HEIGHT * mapScaleY,
+                                Tile.TILE_WIDTH * mapScaleX + 1,
+                                Tile.TILE_HEIGHT * mapScaleY + 1
+                            )
+                        }
+                        // Notă: Pentru path tiles (non-solid), ar trebui logic special
+                        // Dacă vrei și path-urile vizibile, trebuie să verifici GID-urile
                     }
-                    shapeRenderer.rect(
-                        miniMapX + xTile * Tile.TILE_WIDTH * mapScaleX,
-                        miniMapY + yTile * Tile.TILE_HEIGHT * mapScaleY,
-                        Tile.TILE_WIDTH * mapScaleX,
-                        Tile.TILE_HEIGHT * mapScaleY
-                    )
+
+                    1 -> {
+                        // ========== NIVEL 2 - EXACT CA DESKTOP ==========
+                        val tile = currentMap.getTile(xTile, yTile)
+                        if (tile != null && tile.isSolid) {
+                            // GRAY - EXACT: RGB(100, 100, 100)
+                            shapeRenderer.color = Color(100f / 255f, 100f / 255f, 100f / 255f, 1f)
+                            shapeRenderer.rect(
+                                miniMapX + xTile * Tile.TILE_WIDTH * mapScaleX,
+                                miniMapY + yTile * Tile.TILE_HEIGHT * mapScaleY,
+                                Tile.TILE_WIDTH * mapScaleX + 1,
+                                Tile.TILE_HEIGHT * mapScaleY + 1
+                            )
+                        }
+                    }
+
+                    else -> {
+                        // ========== NIVEL 3+ - EXACT CA DESKTOP ==========
+                        val tile = currentMap.getTile(xTile, yTile)
+                        if (tile != null && tile.isSolid) {
+                            // DARK BROWN - EXACT: RGB(87, 51, 35)
+                            shapeRenderer.color = Color(87f / 255f, 51f / 255f, 35f / 255f, 1f)
+                            shapeRenderer.rect(
+                                miniMapX + xTile * Tile.TILE_WIDTH * mapScaleX,
+                                miniMapY + yTile * Tile.TILE_HEIGHT * mapScaleY,
+                                Tile.TILE_WIDTH * mapScaleX + 1,
+                                Tile.TILE_HEIGHT * mapScaleY + 1
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // Draw collectibles
+        // Collectibles - EXACT ca desktop (YELLOW dots)
         for (entity in entities) {
-            if (entity is Key || entity is Talisman) {
+            if ((entity is Key && !entity.isCollected) ||
+                (entity is Talisman && !entity.isCollected)
+            ) {
                 shapeRenderer.color = Color.YELLOW
                 val entityMiniMapX = miniMapX + entity.x * mapScaleX
                 val entityMiniMapY = miniMapY + entity.y * mapScaleY
-                shapeRenderer.circle(entityMiniMapX, entityMiniMapY, 5f)
+                shapeRenderer.circle(entityMiniMapX, entityMiniMapY, 3f)
             }
         }
 
-        // Draw player
+        // Player - EXACT ca desktop (CYAN dot)
         shapeRenderer.color = Color.CYAN
         val playerMiniMapX = miniMapX + player.x * mapScaleX
         val playerMiniMapY = miniMapY + player.y * mapScaleY
         shapeRenderer.circle(playerMiniMapX, playerMiniMapY, 5f)
 
         shapeRenderer.end()
-    }
 
-    override fun dispose() {
-        font.dispose()
-        shapeRenderer.dispose()
+        // Restore batch state
+        if (wasBatchDrawing) {
+            batch.begin()
+        }
     }
 }

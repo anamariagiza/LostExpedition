@@ -34,22 +34,23 @@ class TestScreen(val game: LostExpeditionGame) : Screen {
         font.data.setScale(2f)
 
         // Initialize TouchController
-        val screenWidth = Gdx.graphics.width.toFloat()
-        val screenHeight = Gdx.graphics.height.toFloat()
-        touchController = TouchController(screenWidth.toInt(), screenHeight.toInt())
+        val screenWidth = Gdx.graphics.width
+        val screenHeight = Gdx.graphics.height
+        // ✅ FIX: Apel constructor corect cu dimensiuni
+        touchController = TouchController(screenWidth, screenHeight)
 
         // Set up input processor
         Gdx.input.inputProcessor = object : InputAdapter() {
             override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                return touchController.touchDown(screenX.toFloat(), screenY.toFloat(), pointer)
+                return touchController.touchDown(screenX.toFloat(), (Gdx.graphics.height - screenY).toFloat(), pointer)
             }
 
             override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                return touchController.touchUp(screenX.toFloat(), screenY.toFloat(), pointer)
+                return touchController.touchUp(screenX.toFloat(), (Gdx.graphics.height - screenY).toFloat(), pointer)
             }
 
             override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
-                return touchController.touchDragged(screenX.toFloat(), screenY.toFloat(), pointer)
+                return touchController.touchDragged(screenX.toFloat(), (Gdx.graphics.height - screenY).toFloat(), pointer)
             }
         }
 
@@ -67,7 +68,6 @@ class TestScreen(val game: LostExpeditionGame) : Screen {
             try {
                 println("=== Starting Asset Loading ===")
                 Assets.load()
-                Assets.load()
                 assetsLoaded = true
                 println("=== Assets Loaded Successfully! ===")
             } catch (e: Exception) {
@@ -81,10 +81,12 @@ class TestScreen(val game: LostExpeditionGame) : Screen {
         touchController.draw()
 
         // Get input state
+        // ✅ FIX: Apeluri corecte la metodele adăugate în TouchController
         val moveDir = touchController.getMoveDirection()
         val jumpPressed = touchController.isJumpPressed()
-        val attackPressed = touchController.isAttackPressed()
-        val interactPressed = touchController.isInteractPressed()
+        // ✅ FIX: Accesare proprietăți fără paranteze
+        val attackPressed = touchController.isAttackPressed
+        val interactPressed = touchController.isInteractPressed
 
         // Draw UI text
         batch.begin()
@@ -131,18 +133,6 @@ class TestScreen(val game: LostExpeditionGame) : Screen {
         font.draw(batch, "Screen: ${Gdx.graphics.width}x${Gdx.graphics.height}", 50f, y)
         y -= 40f
         font.draw(batch, "FPS: ${Gdx.graphics.framesPerSecond}", 50f, y)
-
-        // Instructions at bottom
-        y = 150f
-        font.color = Color.YELLOW
-        font.draw(batch, "TEST INSTRUCTIONS:", 50f, y)
-        y -= 40f
-        font.color = Color.WHITE
-        font.draw(batch, "1. Move joystick (bottom-left)", 50f, y)
-        y -= 35f
-        font.draw(batch, "2. Press buttons (bottom-right)", 50f, y)
-        y -= 35f
-        font.draw(batch, "3. Watch values change above", 50f, y)
 
         batch.end()
     }

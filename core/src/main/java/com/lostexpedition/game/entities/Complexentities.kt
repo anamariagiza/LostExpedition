@@ -6,7 +6,6 @@ import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.lostexpedition.game.graphics.Assets
-import com.lostexpedition.game.tiles.Tile
 import com.lostexpedition.game.utils.RefLinks
 
 // ==================== NPC ====================
@@ -21,7 +20,7 @@ class NPC(
 
     override fun update() {
         stateTime += Gdx.graphics.deltaTime
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) a fost șters deoarece bounds se calculează automat
     }
 
     override fun render(batch: SpriteBatch) {
@@ -45,7 +44,6 @@ class Trap(
     val damage = 30
     private var active = false
     private var activationTime = 0f
-    private val activationDuration = 1f
     private var blinkTime = 0f
     private val blinkSpeed = 10f
 
@@ -63,7 +61,7 @@ class Trap(
             activationTime += Gdx.graphics.deltaTime
             blinkTime += Gdx.graphics.deltaTime
         }
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -93,7 +91,7 @@ class TrapTrigger(
 ) : Entity(refLink, x, y, width, height) {
 
     override fun update() {
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -125,7 +123,6 @@ class DecorativeObject(
                 if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
                     val gameState = refLink.gameState
                     if (gameState != null && dialogueMessage != null) {
-                        // Toggle wood sign message
                         if (gameState.isWoodSignMessageShowing()) {
                             gameState.showWoodSignMessage(null)
                         } else {
@@ -135,7 +132,7 @@ class DecorativeObject(
                 }
             }
         }
-        bounds.setPosition(x, y)
+        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -145,5 +142,4 @@ class DecorativeObject(
             batch.draw(it, x, y, width.toFloat(), height.toFloat())
         }
     }
-
 }

@@ -14,34 +14,30 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Implementează noțiunea de "ceață de război" (Fog of War) pentru harta jocului.
- * Folosește un gradient radial smooth pentru efectul de "cerc de lumină" dinamic.
+ * FogOfWar - 100% DESKTOP-MATCHED
+ * Desktop: VISION_RADIUS_TILES = 5, RadialGradientPaint cu dist={0.0, 0.7, 1.0}
  */
 class FogOfWar(
     private val refLink: RefLinks,
     private val mapWidth: Int,
     private val mapHeight: Int
 ) {
-    /** Raza de vizibilitate a jucătorului, măsurată în tile-uri */
-    private val visionRadius = 10f
+    // ✅ DESKTOP EXACT: Vision radius = 5 tiles (NU 8!)
+    private val visionRadiusTiles = 5f
 
-    /** Matrice booleană ce stochează dacă o dală a fost sau nu descoperită permanent */
     private val revealed = Array(mapHeight) { BooleanArray(mapWidth) { false } }
-
-    /** Textură pentru gradient radial (cercul de lumină) */
     private val gradientTexture: Texture
 
     init {
         gradientTexture = createRadialGradient()
-        // NU mai apelăm initializeStartArea() aici pentru a evita null pointer
-        println("DEBUG FogOfWar: Inițializat cu dimensiunile ${mapWidth}x${mapHeight}")
+        println("✓ FogOfWar - DESKTOP MATCHED (radius: 5 tiles)")
     }
 
-    /**
-     * Creează o textură cu gradient radial pentru efectul de cerc de lumină
-     */
     private fun createRadialGradient(): Texture {
-        val size = 512 // Dimensiunea texturii (mai mare = mai smooth)
+        // ✅ DESKTOP EXACT: Gradient matching Java RadialGradientPaint
+        // dist = {0.0f, 0.7f, 1.0f}
+        // colors = {transparent, transparent, opaque(220)}
+        val size = 512
         val pixmap = Pixmap(size, size, Pixmap.Format.RGBA8888)
 
         val centerX = size / 2f
@@ -55,14 +51,14 @@ class FogOfWar(
                 val distance = sqrt(dx * dx + dy * dy)
                 val normalizedDistance = distance / maxRadius
 
-                // Gradient cu 3 zone (similar cu Java RadialGradientPaint)
+                // ✅ Desktop gradient: 0.0→0.7 = transparent, 0.7→1.0 = fade to opaque
                 val alpha = when {
-                    normalizedDistance <= 0.7f -> 0f // Transparent în centru și zona apropiată
-                    normalizedDistance >= 1.0f -> 0.86f // Opac la margine (220/255 ≈ 0.86)
+                    normalizedDistance <= 0.7f -> 0f  // Transparent zone
+                    normalizedDistance >= 1.0f -> 0.863f  // 220/255 = 0.863
                     else -> {
-                        // Fade smooth între 0.7 și 1.0
+                        // Linear interpolation from 0.7 to 1.0
                         val fadeProgress = (normalizedDistance - 0.7f) / 0.3f
-                        fadeProgress * 0.86f
+                        fadeProgress * 0.863f
                     }
                 }
 
@@ -76,9 +72,6 @@ class FogOfWar(
         return texture
     }
 
-    /**
-     * Inițializează zona de start în jurul jucătorului
-     */
     private fun initializeStartArea() {
         val player = refLink.player ?: return
 
@@ -91,40 +84,34 @@ class FogOfWar(
                 val dy = y - playerTileY
                 val distance = sqrt((dx * dx + dy * dy).toFloat())
 
-                if (distance <= visionRadius) {
+                if (distance <= visionRadiusTiles) {
                     revealed[y][x] = true
                 }
             }
         }
     }
 
-    /**
-     * Actualizează starea de dezvăluire a hărții pe baza poziției jucătorului
-     */
     fun update() {
         val player = refLink.player ?: return
 
         var playerTileX = ((player.x + player.width / 2) / Tile.TILE_WIDTH).toInt()
         var playerTileY = ((player.y + player.height / 2) / Tile.TILE_HEIGHT).toInt()
 
-        // Asigură că coordonatele sunt în limitele hărții
         playerTileX = max(0, min(mapWidth - 1, playerTileX))
         playerTileY = max(0, min(mapHeight - 1, playerTileY))
 
-        // Prima dată când se apelează update, inițializează zona de start
         if (!revealed[playerTileY][playerTileX]) {
             initializeStartArea()
         }
 
-        // Dezvăluie dalele în raza de vizibilitate
-        for (yOffset in -visionRadius.toInt()..visionRadius.toInt()) {
-            for (xOffset in -visionRadius.toInt()..visionRadius.toInt()) {
+        for (yOffset in -visionRadiusTiles.toInt()..visionRadiusTiles.toInt()) {
+            for (xOffset in -visionRadiusTiles.toInt()..visionRadiusTiles.toInt()) {
                 val checkX = playerTileX + xOffset
                 val checkY = playerTileY + yOffset
 
                 if (checkX in 0 until mapWidth && checkY in 0 until mapHeight) {
                     val distance = sqrt((xOffset * xOffset + yOffset * yOffset).toFloat())
-                    if (distance <= visionRadius) {
+                    if (distance <= visionRadiusTiles) {
                         revealed[checkY][checkX] = true
                     }
                 }
@@ -132,32 +119,24 @@ class FogOfWar(
         }
     }
 
-    /**
-     * Randează efectul de "cerc de lumină" dinamic cu gradient radial smooth
-     */
     fun render(batch: SpriteBatch, camera: OrthographicCamera) {
         val player = refLink.player ?: return
 
-        // Verifică dacă batch-ul este în starea drawing
-        val wasDrawing = batch.isDrawing
+        val wasBatchDrawing = batch.isDrawing
 
-        // Dacă nu era drawing, începe acum
-        if (!wasDrawing) {
+        if (!wasBatchDrawing) {
             batch.begin()
         }
 
-        // Activează blending pentru transparență
         Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
 
-        // Calculează poziția pe ecran a jucătorului
         val playerCenterX = player.x + player.width / 2
         val playerCenterY = player.y + player.height / 2
 
-        // Dimensiunea cercului de lumină (în pixeli)
-        val lightRadius = visionRadius * Tile.TILE_WIDTH * 2f
+        // ✅ DESKTOP EXACT: radius = VISION_RADIUS_TILES * TILE_WIDTH (fără multiplicatori)
+        val lightRadius = visionRadiusTiles * Tile.TILE_WIDTH
 
-        // Desenează cercul de gradient centrat pe jucător
         batch.color = Color.WHITE
         batch.draw(
             gradientTexture,
@@ -166,19 +145,13 @@ class FogOfWar(
             lightRadius,
             lightRadius
         )
-
-        // Resetează culoarea
         batch.color = Color.WHITE
 
-        // Dacă nu era drawing înainte, termină acum
-        if (!wasDrawing) {
+        if (!wasBatchDrawing) {
             batch.end()
         }
     }
 
-    /**
-     * Verifică dacă o dală este vizibilă în prezent (în cercul de lumină)
-     */
     fun isTileVisible(x: Int, y: Int): Boolean {
         val player = refLink.player ?: return false
         if (x !in 0 until mapWidth || y !in 0 until mapHeight) return false
@@ -191,12 +164,9 @@ class FogOfWar(
 
         val distance = sqrt(((playerTileX - x) * (playerTileX - x) +
             (playerTileY - y) * (playerTileY - y)).toFloat())
-        return distance <= visionRadius
+        return distance <= visionRadiusTiles
     }
 
-    /**
-     * Verifică dacă o dală a fost descoperită permanent (explorată)
-     */
     fun isRevealed(tileX: Int, tileY: Int): Boolean {
         if (tileX in 0 until mapWidth && tileY in 0 until mapHeight) {
             return revealed[tileY][tileX]
@@ -206,9 +176,6 @@ class FogOfWar(
 
     fun isTileRevealed(x: Int, y: Int): Boolean = isRevealed(x, y)
 
-    /**
-     * Dezvăluie instantaneu întreaga hartă
-     */
     fun revealAll() {
         for (y in 0 until mapHeight) {
             for (x in 0 until mapWidth) {
@@ -220,9 +187,6 @@ class FogOfWar(
 
     fun revealAllTiles() = revealAll()
 
-    /**
-     * Resetează ceața de război
-     */
     fun reset() {
         for (y in 0 until mapHeight) {
             for (x in 0 until mapWidth) {
@@ -234,11 +198,8 @@ class FogOfWar(
 
     fun resetFogOfWar() = reset()
 
-    fun getVisionRadius(): Int = visionRadius.toInt()
+    fun getVisionRadius(): Int = visionRadiusTiles.toInt()
 
-    /**
-     * Calculează procentajul hărții explorat
-     */
     fun getExplorationPercentage(): Float {
         val totalTiles = mapWidth * mapHeight
         var revealedCount = 0
@@ -254,9 +215,6 @@ class FogOfWar(
         return (revealedCount.toFloat() / totalTiles) * 100f
     }
 
-    /**
-     * Eliberează resursele
-     */
     fun dispose() {
         gradientTexture.dispose()
     }

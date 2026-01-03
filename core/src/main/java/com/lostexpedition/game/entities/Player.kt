@@ -17,35 +17,29 @@ class Player(
     startY: Float
 ) : Entity(refLink, startX, startY, 64, 64) {
 
-    // Health & state
-    var health: Int = 100
+    override var health: Int = 100
     private val maxHealth = 100
     private var isHurt: Boolean = false
 
-    // Movement
     private val normalSpeed = 3f
     private val runSpeed = 5f
     private var currentSpeed = normalSpeed
     private var xMove = 0f
     private var yMove = 0f
 
-    // Animation
     private var stateTime = 0f
     private lateinit var currentAnimation: Animation<TextureRegion>
     private var currentFrame: TextureRegion
 
-    // Direction
     private var facingRight = true
     private var facingDown = true
 
-    // Attack
     private var isAttacking = false
     private var attackTime = 0f
     private val attackDuration = 0.5f
     private val attackRange = 80f
     private val attackDamage = 25
 
-    // Jump
     private var isJumping = false
     private var jumpTime = 0f
     private val jumpDuration = 0.5f
@@ -53,7 +47,6 @@ class Player(
     init {
         currentAnimation = Assets.playerIdleDown ?: createDefaultAnimation()
         currentFrame = currentAnimation.getKeyFrame(0f)
-        bounds = Rectangle(x, y, width.toFloat(), height.toFloat())
     }
 
     private fun createDefaultAnimation(): Animation<TextureRegion> {
@@ -62,12 +55,13 @@ class Player(
     }
 
     override fun update() {
+        // ✅ FIX: Update TouchController FIRST
+        refLink.touchController?.update()
+
         handleInput()
         move()
         updateAnimations()
-        bounds.setPosition(x, y)
 
-        // Update attack state
         if (isAttacking) {
             attackTime += Gdx.graphics.deltaTime
             if (attackTime >= attackDuration) {
@@ -76,7 +70,6 @@ class Player(
             }
         }
 
-        // Update jump state
         if (isJumping) {
             jumpTime += Gdx.graphics.deltaTime
             if (jumpTime >= jumpDuration) {
@@ -93,7 +86,7 @@ class Player(
 
         val touchController = refLink.touchController
 
-        // Joystick movement
+        // ✅ Android touch controls
         if (touchController != null) {
             if (touchController.isJoystickActive) {
                 val joyX = touchController.joystickDeltaX
@@ -102,7 +95,6 @@ class Player(
                 xMove = joyX * currentSpeed
                 yMove = joyY * currentSpeed
 
-                // Update facing direction
                 if (kotlin.math.abs(joyX).compareTo(0.1f) > 0) {
                     facingRight = joyX > 0
                 }
@@ -111,25 +103,19 @@ class Player(
                 }
             }
 
-            // Run button
-            if (touchController.runButtonPressed) {
-                currentSpeed = runSpeed
-                xMove = if (xMove != 0f) (xMove / normalSpeed) * runSpeed else 0f
-                yMove = if (yMove != 0f) (yMove / normalSpeed) * runSpeed else 0f
-            }
-
-            // Attack button
-            if (touchController.attackButtonPressed && !isAttacking) {
+            // ✅ FIX: Attack button - folosește isAttackPressed
+            if (touchController.isAttackPressed && !isAttacking) {
                 performAttack()
             }
 
-            // Jump button
-            if (touchController.jumpButtonPressed && !isJumping) {
-                performJump()
-            }
+            // ✅ FIX: Interact button poate fi folosit pentru jump (opțional)
+            // Decomentează dacă vrei jump cu interact button:
+            // if (touchController.isInteractPressed && !isJumping) {
+            //     performJump()
+            // }
         }
 
-        // Keyboard controls (pentru desktop testing)
+        // ✅ Keyboard controls (pentru desktop testing)
         if (Gdx.input.isKeyPressed(Input.Keys.W)) yMove = currentSpeed
         if (Gdx.input.isKeyPressed(Input.Keys.S)) yMove = -currentSpeed
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
@@ -141,12 +127,14 @@ class Player(
             facingRight = true
         }
 
+        // Run cu SHIFT (doar pentru keyboard)
         if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) {
             currentSpeed = runSpeed
             xMove = if (xMove != 0f) (xMove / normalSpeed) * runSpeed else 0f
             yMove = if (yMove != 0f) (yMove / normalSpeed) * runSpeed else 0f
         }
 
+        // Attack cu SPACE (doar pentru keyboard)
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && !isAttacking) {
             performAttack()
         }
@@ -156,7 +144,6 @@ class Player(
         isAttacking = true
         attackTime = 0f
 
-        // Attack hitbox
         val attackBounds = Rectangle(
             if (facingRight) x + width else x - attackRange,
             y,
@@ -164,14 +151,16 @@ class Player(
             height.toFloat()
         )
 
-        // Check for enemies in range
         val gameState = refLink.gameState
         gameState?.let { state ->
             for (entity in state.getEntities()) {
-                if (entity is Agent && entity.bounds.overlaps(attackBounds)) {
+                // ✅ FIX: Convertim bounds la Rectangle pentru comparație
+                val entityRect = entity.bounds.toRectangle()
+
+                if (entity is Agent && attackBounds.overlaps(entityRect)) {
                     entity.takeDamage(attackDamage)
                 }
-                if (entity is Animal && entity.bounds.overlaps(attackBounds)) {
+                if (entity is Animal && attackBounds.overlaps(entityRect)) {
                     entity.takeDamage(attackDamage)
                 }
             }
@@ -194,7 +183,6 @@ class Player(
         val newX = x + xMove
         val map = refLink.map ?: return
 
-        // Check collision with tiles
         val tileXLeft = ((newX) / Tile.TILE_WIDTH).toInt()
         val tileXRight = ((newX + width - 1) / Tile.TILE_WIDTH).toInt()
         val tileYBottom = (y / Tile.TILE_HEIGHT).toInt()
@@ -226,7 +214,6 @@ class Player(
         val newY = y + yMove
         val map = refLink.map ?: return
 
-        // Check collision with tiles
         val tileXLeft = (x / Tile.TILE_WIDTH).toInt()
         val tileXRight = ((x + width - 1) / Tile.TILE_WIDTH).toInt()
         val tileYBottom = ((newY) / Tile.TILE_HEIGHT).toInt()
@@ -271,7 +258,6 @@ class Player(
             }
             xMove != 0f || yMove != 0f -> {
                 if (currentSpeed > normalSpeed) {
-                    // Running
                     when {
                         abs(xMove) > abs(yMove) -> {
                             if (facingRight)
@@ -283,7 +269,6 @@ class Player(
                         else -> Assets.playerRunDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
                     }
                 } else {
-                    // Walking
                     when {
                         abs(xMove) > abs(yMove) -> {
                             if (facingRight)
@@ -297,7 +282,6 @@ class Player(
                 }
             }
             else -> {
-                // Idle
                 when {
                     !facingDown -> Assets.playerIdleUp ?: createDefaultAnimation()
                     facingRight -> Assets.playerIdleRight ?: createDefaultAnimation()
@@ -331,10 +315,11 @@ class Player(
         isHurt = false
     }
 
-    fun setPosition(newX: Float, newY: Float) {
-        x = newX
-        y = newY
-        bounds.setPosition(x, y)
+    // ✅ FIX: Poate folosi setPosition din Entity (care acum e open)
+    // SAU poate override dacă ai logică extra:
+    override fun setPosition(newX: Float, newY: Float) {
+        super.setPosition(newX, newY)
+        // Aici poți adăuga logică extra dacă e nevoie
     }
 
     fun getMaxHealth(): Int = maxHealth

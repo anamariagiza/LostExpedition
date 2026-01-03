@@ -9,21 +9,22 @@ import com.lostexpedition.game.states.LoadingScreenState
 import com.lostexpedition.game.states.State
 import com.lostexpedition.game.utils.RefLinks
 
+/**
+ * LostExpeditionGame - 100% DESKTOP-MATCHED
+ * Desktop viewport: 1500x843
+ */
 class LostExpeditionGame : ApplicationAdapter() {
 
     private lateinit var batch: SpriteBatch
     private lateinit var refLinks: RefLinks
 
     override fun create() {
-        println("🎮 LostExpeditionGame.create() STARTED")
+        println("🎮 LostExpeditionGame.create() - DESKTOP MATCHED MODE")
         batch = SpriteBatch()
         refLinks = RefLinks(this)
 
-        // DO NOT load assets here - LoadingScreenState will do it on main thread
-        // Assets.load() // ❌ REMOVED - causes double loading and threading issues
-
         refLinks.setState(LoadingScreenState(refLinks))
-        println("✓ LostExpeditionGame initialized - LoadingScreenState set")
+        println("✓ Initialized with desktop viewport: 1500px width")
     }
 
     override fun render() {
@@ -32,7 +33,6 @@ class LostExpeditionGame : ApplicationAdapter() {
 
         val delta = Gdx.graphics.deltaTime
 
-        // Debug: Check if state exists
         if (State.currentState == null) {
             println("⚠️ WARNING: State.currentState is NULL!")
             return
@@ -43,8 +43,19 @@ class LostExpeditionGame : ApplicationAdapter() {
     }
 
     override fun resize(width: Int, height: Int) {
+        // ✅ DESKTOP EXACT: 1500px viewport width (ca Java AWT)
+        val aspectRatio = width.toFloat() / height.toFloat()
+        val gameWidth = 1500f  // ← EXACT ca desktop
+        val gameHeight = gameWidth / aspectRatio  // ~675f pentru 2400x1080
+
+        refLinks.gameCamera.viewportWidth = gameWidth
+        refLinks.gameCamera.viewportHeight = gameHeight
+        refLinks.gameCamera.update()
+
+        // Update batch projection pentru UI rendering
         batch.projectionMatrix.setToOrtho2D(0f, 0f, width.toFloat(), height.toFloat())
-        println("✓ Screen resized to ${width}x${height}")
+
+        println("✓ Resize: ${width}x${height} → viewport ${gameWidth}x${gameHeight}")
     }
 
     override fun dispose() {
