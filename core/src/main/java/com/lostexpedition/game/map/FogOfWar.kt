@@ -119,37 +119,71 @@ class FogOfWar(
         }
     }
 
+// În FogOfWar.kt
+
     fun render(batch: SpriteBatch, camera: OrthographicCamera) {
         val player = refLink.player ?: return
 
-        val wasBatchDrawing = batch.isDrawing
-
-        if (!wasBatchDrawing) {
-            batch.begin()
+        // 1. Oprim batch-ul curent pentru a folosi ShapeRenderer (pentru dreptunghiurile negre)
+        if (batch.isDrawing) {
+            batch.end()
         }
 
+        // Setăm blending pentru transparență
         Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
 
+        val shapeRenderer = com.badlogic.gdx.graphics.glutils.ShapeRenderer()
+        shapeRenderer.projectionMatrix = camera.combined
+        shapeRenderer.begin(com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType.Filled)
+
+        // Culoarea neagră a ceții (același alpha ca marginea gradientului tău: 0.863f)
+        shapeRenderer.color = Color(0f, 0f, 0f, 0.863f)
+
+        // Calcule pentru poziția "luminii"
+        val lightRadius = visionRadiusTiles * Tile.TILE_WIDTH
         val playerCenterX = player.x + player.width / 2
         val playerCenterY = player.y + player.height / 2
 
-        // ✅ DESKTOP EXACT: radius = VISION_RADIUS_TILES * TILE_WIDTH (fără multiplicatori)
-        val lightRadius = visionRadiusTiles * Tile.TILE_WIDTH
+        // Coordonatele pătratului de lumină (gradientul)
+        val lightX = playerCenterX - lightRadius / 2f
+        val lightY = playerCenterY - lightRadius / 2f
 
-        batch.color = Color.WHITE
+        // Dimensiunile hărții în pixeli
+        val mapWidthPixels = mapWidth * Tile.TILE_WIDTH.toFloat()
+        val mapHeightPixels = mapHeight * Tile.TILE_HEIGHT.toFloat()
+
+        // --- DESENĂM CEATA "SOLIDĂ" ÎN JURUL PLAYERULUI ---
+
+        // 1. Dreptunghi Stânga (de la marginea hărții până la lumină)
+        shapeRenderer.rect(0f, 0f, lightX, mapHeightPixels)
+
+        // 2. Dreptunghi Dreapta (de la dreapta luminii până la marginea hărții)
+        shapeRenderer.rect(lightX + lightRadius, 0f, mapWidthPixels - (lightX + lightRadius), mapHeightPixels)
+
+        // 3. Dreptunghi Sus (deasupra luminii, între stânga și dreapta luminii)
+        shapeRenderer.rect(lightX, lightY + lightRadius, lightRadius, mapHeightPixels - (lightY + lightRadius))
+
+        // 4. Dreptunghi Jos (sub lumină, între stânga și dreapta luminii)
+        shapeRenderer.rect(lightX, 0f, lightRadius, lightY)
+
+        shapeRenderer.end()
+        shapeRenderer.dispose() // Important să eliberăm resursele ShapeRenderer local
+
+        // --- DESENĂM GRADIENTUL (Lumina difuză) ---
+        batch.begin()
+        batch.color = Color.WHITE // Resetăm culoarea batch-ului
+
+        // Desenăm textura gradient care face trecerea fină de la transparent la negru
         batch.draw(
             gradientTexture,
-            playerCenterX - lightRadius / 2f,
-            playerCenterY - lightRadius / 2f,
+            lightX,
+            lightY,
             lightRadius,
             lightRadius
         )
-        batch.color = Color.WHITE
 
-        if (!wasBatchDrawing) {
-            batch.end()
-        }
+        // Batch-ul rămâne deschis pentru restul randării din GameState
     }
 
     fun isTileVisible(x: Int, y: Int): Boolean {

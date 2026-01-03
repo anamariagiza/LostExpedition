@@ -468,6 +468,8 @@ class GameState(
             return
         }
 
+        refLink.gameCamera.updateCamera()
+
         currentMap.update()
         fogOfWar?.update()
         player.update()
