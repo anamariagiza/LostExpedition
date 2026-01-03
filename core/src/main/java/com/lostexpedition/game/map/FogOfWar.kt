@@ -7,60 +7,111 @@ import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import com.lostexpedition.game.tiles.TileConstants
 import com.lostexpedition.game.utils.RefLinks
-import com.lostexpedition.game.tiles.Tile
-import kotlin.math.sqrt
-import kotlin.math.max
-import kotlin.math.min
 
-/**
- * FogOfWar - 100% DESKTOP-MATCHED
- * Desktop: VISION_RADIUS_TILES = 5, RadialGradientPaint cu dist={0.0, 0.7, 1.0}
- */
 class FogOfWar(
     private val refLink: RefLinks,
     private val mapWidth: Int,
     private val mapHeight: Int
 ) {
-    // ✅ DESKTOP EXACT: Vision radius = 5 tiles (NU 8!)
-    private val visionRadiusTiles = 5f
-
-    private val revealed = Array(mapHeight) { BooleanArray(mapWidth) { false } }
-    private val gradientTexture: Texture
+    private val visionRadiusTiles = 5
+    private var gradientTexture: Texture
 
     init {
-        gradientTexture = createRadialGradient()
-        println("✓ FogOfWar - DESKTOP MATCHED (radius: 5 tiles)")
+        gradientTexture = createGradientTexture(256)
+        println("DEBUG FogOfWar: Inițializat cu dimensiunile $mapWidth x $mapHeight")
     }
 
-    private fun createRadialGradient(): Texture {
-        // ✅ DESKTOP EXACT: Gradient matching Java RadialGradientPaint
-        // dist = {0.0f, 0.7f, 1.0f}
-        // colors = {transparent, transparent, opaque(220)}
-        val size = 512
-        val pixmap = Pixmap(size, size, Pixmap.Format.RGBA8888)
+    fun update() {
+        // Dacă vrei să faci lumina să pulseze, poți pune logica aici
+    }
 
-        val centerX = size / 2f
-        val centerY = size / 2f
-        val maxRadius = size / 2f
+    fun render(batch: SpriteBatch, camera: OrthographicCamera) {
+        val player = refLink.player ?: return
+
+        // 1. Oprim batch-ul curent pentru a folosi ShapeRenderer
+        if (batch.isDrawing) {
+            batch.end()
+        }
+
+        // Setăm blending pentru transparență
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+
+        val shapeRenderer = ShapeRenderer()
+        shapeRenderer.projectionMatrix = camera.combined
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+
+        // Culoarea neagră a ceții
+        shapeRenderer.color = Color(0f, 0f, 0f, 0.863f)
+
+        val lightRadius = visionRadiusTiles * TileConstants.TILE_SIZE
+        val playerCenterX = player.x + player.width / 2
+        val playerCenterY = player.y + player.height / 2
+
+        val lightX = playerCenterX - lightRadius / 2f
+        val lightY = playerCenterY - lightRadius / 2f
+
+        val mapWidthPixels = mapWidth * TileConstants.TILE_SIZE
+        val mapHeightPixels = mapHeight * TileConstants.TILE_SIZE
+
+        // --- DREPTUNGHIURI NEGRE (Ceata solidă) ---
+        // Stânga
+        shapeRenderer.rect(0f, 0f, lightX, mapHeightPixels)
+        // Dreapta
+        shapeRenderer.rect(lightX + lightRadius, 0f, mapWidthPixels - (lightX + lightRadius), mapHeightPixels)
+        // Sus
+        shapeRenderer.rect(lightX, lightY + lightRadius, lightRadius, mapHeightPixels - (lightY + lightRadius))
+        // Jos
+        shapeRenderer.rect(lightX, 0f, lightRadius, lightY)
+
+        shapeRenderer.end()
+        shapeRenderer.dispose() // Curățăm ShapeRenderer local
+
+        // --- DESENĂM GRADIENTUL ---
+        batch.begin() // Deschidem batch-ul
+        batch.color = Color.WHITE
+
+        batch.draw(
+            gradientTexture,
+            lightX,
+            lightY,
+            lightRadius,
+            lightRadius
+        )
+
+        // ✅ FIX CRITIC: Închidem batch-ul aici!
+        // Dacă nu îl închidem, TouchController (care folosește ShapeRenderer)
+        // sau următorul cadru vor crăpa.
+        batch.end()
+    }
+
+    private fun createGradientTexture(size: Int): Texture {
+        val pixmap = Pixmap(size, size, Pixmap.Format.RGBA8888)
+        val center = size / 2
+        val radius = size / 2
 
         for (y in 0 until size) {
             for (x in 0 until size) {
-                val dx = x - centerX
-                val dy = y - centerY
-                val distance = sqrt(dx * dx + dy * dy)
-                val normalizedDistance = distance / maxRadius
+                val dx = x - center
+                val dy = y - center
+                val distance = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
 
-                // ✅ Desktop gradient: 0.0→0.7 = transparent, 0.7→1.0 = fade to opaque
-                val alpha = when {
-                    normalizedDistance <= 0.7f -> 0f  // Transparent zone
-                    normalizedDistance >= 1.0f -> 0.863f  // 220/255 = 0.863
-                    else -> {
-                        // Linear interpolation from 0.7 to 1.0
-                        val fadeProgress = (normalizedDistance - 0.7f) / 0.3f
-                        fadeProgress * 0.863f
-                    }
+                var alpha = 0f
+                if (distance < radius) {
+                    // Gradient simplu: 0 la centru, 1 la margine
+                    alpha = distance / radius
+                    // Curbă pentru a face marginea mai 'soft'
+                    alpha = Math.pow(alpha.toDouble(), 2.0).toFloat()
+                } else {
+                    alpha = 1f
                 }
+
+                // Limităm alpha la valoarea ceții solide (~0.86) pentru a se îmbina perfect
+                val maxAlpha = 220f / 255f
+                if (alpha > maxAlpha) alpha = maxAlpha
 
                 pixmap.setColor(0f, 0f, 0f, alpha)
                 pixmap.drawPixel(x, y)
@@ -70,183 +121,6 @@ class FogOfWar(
         val texture = Texture(pixmap)
         pixmap.dispose()
         return texture
-    }
-
-    private fun initializeStartArea() {
-        val player = refLink.player ?: return
-
-        val playerTileX = ((player.x + player.width / 2) / Tile.TILE_WIDTH).toInt()
-        val playerTileY = ((player.y + player.height / 2) / Tile.TILE_HEIGHT).toInt()
-
-        for (y in 0 until mapHeight) {
-            for (x in 0 until mapWidth) {
-                val dx = x - playerTileX
-                val dy = y - playerTileY
-                val distance = sqrt((dx * dx + dy * dy).toFloat())
-
-                if (distance <= visionRadiusTiles) {
-                    revealed[y][x] = true
-                }
-            }
-        }
-    }
-
-    fun update() {
-        val player = refLink.player ?: return
-
-        var playerTileX = ((player.x + player.width / 2) / Tile.TILE_WIDTH).toInt()
-        var playerTileY = ((player.y + player.height / 2) / Tile.TILE_HEIGHT).toInt()
-
-        playerTileX = max(0, min(mapWidth - 1, playerTileX))
-        playerTileY = max(0, min(mapHeight - 1, playerTileY))
-
-        if (!revealed[playerTileY][playerTileX]) {
-            initializeStartArea()
-        }
-
-        for (yOffset in -visionRadiusTiles.toInt()..visionRadiusTiles.toInt()) {
-            for (xOffset in -visionRadiusTiles.toInt()..visionRadiusTiles.toInt()) {
-                val checkX = playerTileX + xOffset
-                val checkY = playerTileY + yOffset
-
-                if (checkX in 0 until mapWidth && checkY in 0 until mapHeight) {
-                    val distance = sqrt((xOffset * xOffset + yOffset * yOffset).toFloat())
-                    if (distance <= visionRadiusTiles) {
-                        revealed[checkY][checkX] = true
-                    }
-                }
-            }
-        }
-    }
-
-// În FogOfWar.kt
-
-    fun render(batch: SpriteBatch, camera: OrthographicCamera) {
-        val player = refLink.player ?: return
-
-        // 1. Oprim batch-ul curent pentru a folosi ShapeRenderer (pentru dreptunghiurile negre)
-        if (batch.isDrawing) {
-            batch.end()
-        }
-
-        // Setăm blending pentru transparență
-        Gdx.gl.glEnable(GL20.GL_BLEND)
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-
-        val shapeRenderer = com.badlogic.gdx.graphics.glutils.ShapeRenderer()
-        shapeRenderer.projectionMatrix = camera.combined
-        shapeRenderer.begin(com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType.Filled)
-
-        // Culoarea neagră a ceții (același alpha ca marginea gradientului tău: 0.863f)
-        shapeRenderer.color = Color(0f, 0f, 0f, 0.863f)
-
-        // Calcule pentru poziția "luminii"
-        val lightRadius = visionRadiusTiles * Tile.TILE_WIDTH
-        val playerCenterX = player.x + player.width / 2
-        val playerCenterY = player.y + player.height / 2
-
-        // Coordonatele pătratului de lumină (gradientul)
-        val lightX = playerCenterX - lightRadius / 2f
-        val lightY = playerCenterY - lightRadius / 2f
-
-        // Dimensiunile hărții în pixeli
-        val mapWidthPixels = mapWidth * Tile.TILE_WIDTH.toFloat()
-        val mapHeightPixels = mapHeight * Tile.TILE_HEIGHT.toFloat()
-
-        // --- DESENĂM CEATA "SOLIDĂ" ÎN JURUL PLAYERULUI ---
-
-        // 1. Dreptunghi Stânga (de la marginea hărții până la lumină)
-        shapeRenderer.rect(0f, 0f, lightX, mapHeightPixels)
-
-        // 2. Dreptunghi Dreapta (de la dreapta luminii până la marginea hărții)
-        shapeRenderer.rect(lightX + lightRadius, 0f, mapWidthPixels - (lightX + lightRadius), mapHeightPixels)
-
-        // 3. Dreptunghi Sus (deasupra luminii, între stânga și dreapta luminii)
-        shapeRenderer.rect(lightX, lightY + lightRadius, lightRadius, mapHeightPixels - (lightY + lightRadius))
-
-        // 4. Dreptunghi Jos (sub lumină, între stânga și dreapta luminii)
-        shapeRenderer.rect(lightX, 0f, lightRadius, lightY)
-
-        shapeRenderer.end()
-        shapeRenderer.dispose() // Important să eliberăm resursele ShapeRenderer local
-
-        // --- DESENĂM GRADIENTUL (Lumina difuză) ---
-        batch.begin()
-        batch.color = Color.WHITE // Resetăm culoarea batch-ului
-
-        // Desenăm textura gradient care face trecerea fină de la transparent la negru
-        batch.draw(
-            gradientTexture,
-            lightX,
-            lightY,
-            lightRadius,
-            lightRadius
-        )
-
-        // Batch-ul rămâne deschis pentru restul randării din GameState
-    }
-
-    fun isTileVisible(x: Int, y: Int): Boolean {
-        val player = refLink.player ?: return false
-        if (x !in 0 until mapWidth || y !in 0 until mapHeight) return false
-
-        var playerTileX = ((player.x + player.width / 2) / Tile.TILE_WIDTH).toInt()
-        var playerTileY = ((player.y + player.height / 2) / Tile.TILE_HEIGHT).toInt()
-
-        playerTileX = max(0, min(mapWidth - 1, playerTileX))
-        playerTileY = max(0, min(mapHeight - 1, playerTileY))
-
-        val distance = sqrt(((playerTileX - x) * (playerTileX - x) +
-            (playerTileY - y) * (playerTileY - y)).toFloat())
-        return distance <= visionRadiusTiles
-    }
-
-    fun isRevealed(tileX: Int, tileY: Int): Boolean {
-        if (tileX in 0 until mapWidth && tileY in 0 until mapHeight) {
-            return revealed[tileY][tileX]
-        }
-        return false
-    }
-
-    fun isTileRevealed(x: Int, y: Int): Boolean = isRevealed(x, y)
-
-    fun revealAll() {
-        for (y in 0 until mapHeight) {
-            for (x in 0 until mapWidth) {
-                revealed[y][x] = true
-            }
-        }
-        println("DEBUG FogOfWar: Toate dalele au fost dezvăluite!")
-    }
-
-    fun revealAllTiles() = revealAll()
-
-    fun reset() {
-        for (y in 0 until mapHeight) {
-            for (x in 0 until mapWidth) {
-                revealed[y][x] = false
-            }
-        }
-        println("DEBUG FogOfWar: Fog of War resetat!")
-    }
-
-    fun resetFogOfWar() = reset()
-
-    fun getVisionRadius(): Int = visionRadiusTiles.toInt()
-
-    fun getExplorationPercentage(): Float {
-        val totalTiles = mapWidth * mapHeight
-        var revealedCount = 0
-
-        for (y in 0 until mapHeight) {
-            for (x in 0 until mapWidth) {
-                if (revealed[y][x]) {
-                    revealedCount++
-                }
-            }
-        }
-
-        return (revealedCount.toFloat() / totalTiles) * 100f
     }
 
     fun dispose() {
