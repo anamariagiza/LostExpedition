@@ -9,8 +9,22 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.lostexpedition.game.tiles.TileConstants
+import com.lostexpedition.game.utils.DebugLogger
 import com.lostexpedition.game.utils.RefLinks
 
+/**
+ * FogOfWar - Manages visibility and exploration tracking
+ *
+ * Implements a fog of war system that:
+ * - Limits player visibility to a radius around them
+ * - Permanently tracks explored tiles (like Java version)
+ * - Provides exploration percentage calculation
+ *
+ * @param refLink Reference to game utilities
+ * @param mapWidth Width of the map in tiles
+ * @param mapHeight Height of the map in tiles
+ * @author LostExpedition Team
+ */
 class FogOfWar(
     private val refLink: RefLinks,
     private val mapWidth: Int,
@@ -19,13 +33,121 @@ class FogOfWar(
     private val visionRadiusTiles = 5
     private var gradientTexture: Texture
 
+    /** Tracks which tiles have been revealed (permanent exploration) */
+    private val revealedTiles: Array<BooleanArray> = Array(mapWidth) { BooleanArray(mapHeight) { false } }
+
+    /** Total number of explorable tiles */
+    private var totalTiles: Int = mapWidth * mapHeight
+
+    /** Number of currently revealed tiles */
+    private var revealedCount: Int = 0
+
     init {
         gradientTexture = createGradientTexture(256)
-        println("DEBUG FogOfWar: Inițializat cu dimensiunile $mapWidth x $mapHeight")
+        DebugLogger.log("FogOfWar", "Initialized with dimensions $mapWidth x $mapHeight")
     }
 
+    /**
+     * Updates the fog of war, revealing tiles near the player
+     */
     fun update() {
-        // Dacă vrei să faci lumina să pulseze, poți pune logica aici
+        val player = refLink.player ?: return
+
+        // Calculate player's tile position
+        val playerTileX = (player.x / TileConstants.TILE_SIZE).toInt()
+        val playerTileY = (player.y / TileConstants.TILE_SIZE).toInt()
+
+        // Reveal tiles within vision radius
+        for (dy in -visionRadiusTiles..visionRadiusTiles) {
+            for (dx in -visionRadiusTiles..visionRadiusTiles) {
+                val tileX = playerTileX + dx
+                val tileY = playerTileY + dy
+
+                // Check bounds
+                if (tileX < 0 || tileX >= mapWidth || tileY < 0 || tileY >= mapHeight) {
+                    continue
+                }
+
+                // Check if within circular radius
+                val distance = Math.sqrt((dx * dx + dy * dy).toDouble())
+                if (distance <= visionRadiusTiles) {
+                    // Reveal tile if not already revealed
+                    if (!revealedTiles[tileX][tileY]) {
+                        revealedTiles[tileX][tileY] = true
+                        revealedCount++
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if a specific tile has been revealed/explored
+     *
+     * @param tileX The X coordinate of the tile
+     * @param tileY The Y coordinate of the tile
+     * @return True if the tile has been explored
+     */
+    fun isTileRevealed(tileX: Int, tileY: Int): Boolean {
+        if (tileX < 0 || tileX >= mapWidth || tileY < 0 || tileY >= mapHeight) {
+            return false
+        }
+        return revealedTiles[tileX][tileY]
+    }
+
+    /**
+     * Gets the exploration percentage
+     *
+     * @return Percentage of map explored (0-100)
+     */
+    fun getExplorationPercentage(): Float {
+        return if (totalTiles > 0) {
+            (revealedCount.toFloat() / totalTiles.toFloat()) * 100f
+        } else {
+            0f
+        }
+    }
+
+    /**
+     * Gets the number of revealed tiles
+     *
+     * @return Count of revealed tiles
+     */
+    fun getRevealedTileCount(): Int = revealedCount
+
+    /**
+     * Gets the total number of tiles
+     *
+     * @return Total tile count
+     */
+    fun getTotalTileCount(): Int = totalTiles
+
+    /**
+     * Reveals all tiles on the map (cheat/debug function)
+     */
+    fun revealAllTiles() {
+        for (x in 0 until mapWidth) {
+            for (y in 0 until mapHeight) {
+                if (!revealedTiles[x][y]) {
+                    revealedTiles[x][y] = true
+                    revealedCount++
+                }
+            }
+        }
+        DebugLogger.log("FogOfWar", "All tiles revealed (debug mode)")
+    }
+
+    /**
+     * Resets the fog of war to unexplored state
+     */
+    fun resetFogOfWar() {
+        for (x in 0 until mapWidth) {
+            for (y in 0 until mapHeight) {
+                revealedTiles[x][y] = false
+            }
+        }
+        revealedCount = 0
+        DebugLogger.log("FogOfWar", "Fog of war reset")
     }
 
     fun render(batch: SpriteBatch, camera: OrthographicCamera) {
