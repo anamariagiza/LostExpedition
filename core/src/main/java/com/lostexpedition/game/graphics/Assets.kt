@@ -92,34 +92,97 @@ object Assets {
     }
 
     private fun loadPlayerAssets() {
-        // Idle animations
-        playerIdleDown = loadAnimation("textures/player/idle.png", 1, 1, 0.2f)
-        playerIdleUp = playerIdleDown
-        playerIdleLeft = playerIdleDown
-        playerIdleRight = playerIdleDown
+        val SPRITE_SIZE = 64
 
-        // Walk animations
-        playerWalkDown = loadAnimation("textures/player/walk.png", 1, 1, 0.15f)
-        playerWalkUp = playerWalkDown
-        playerWalkLeft = playerWalkDown
-        playerWalkRight = playerWalkDown
+        // ==================== IDLE ANIMATIONS (128x256 = 2 cols x 4 rows) ====================
+        // Row 0: Down, Row 1: Left, Row 2: Right, Row 3: Up
+        playerIdleDown = loadAnimationFromRow("textures/player/idle.png", 0, 2, SPRITE_SIZE, 0.2f)
+        playerIdleLeft = loadAnimationFromRow("textures/player/idle.png", 1, 2, SPRITE_SIZE, 0.2f)
+        playerIdleRight = loadAnimationFromRow("textures/player/idle.png", 2, 2, SPRITE_SIZE, 0.2f)
+        playerIdleUp = loadAnimationFromRow("textures/player/idle.png", 3, 2, SPRITE_SIZE, 0.2f)
 
-        // Run animations
-        playerRunDown = loadAnimation("textures/player/run.png", 1, 1, 0.1f)
-        playerRunUp = playerRunDown
-        playerRunLeft = playerRunDown
-        playerRunRight = playerRunDown
+        // ==================== WALK ANIMATIONS (576x256 = 9 cols x 4 rows) ====================
+        playerWalkDown = loadAnimationFromRow("textures/player/walk.png", 0, 9, SPRITE_SIZE, 0.1f)
+        playerWalkLeft = loadAnimationFromRow("textures/player/walk.png", 1, 9, SPRITE_SIZE, 0.1f)
+        playerWalkRight = loadAnimationFromRow("textures/player/walk.png", 2, 9, SPRITE_SIZE, 0.1f)
+        playerWalkUp = loadAnimationFromRow("textures/player/walk.png", 3, 9, SPRITE_SIZE, 0.1f)
 
-        // Attack animations
-        playerAttackLeft = loadAnimation("textures/player/slash.png", 1, 1, 0.1f)
-        playerAttackRight = playerAttackLeft
+        // ==================== RUN ANIMATIONS (512x256 = 8 cols x 4 rows) ====================
+        playerRunDown = loadAnimationFromRow("textures/player/run.png", 0, 8, SPRITE_SIZE, 0.08f)
+        playerRunLeft = loadAnimationFromRow("textures/player/run.png", 1, 8, SPRITE_SIZE, 0.08f)
+        playerRunRight = loadAnimationFromRow("textures/player/run.png", 2, 8, SPRITE_SIZE, 0.08f)
+        playerRunUp = loadAnimationFromRow("textures/player/run.png", 3, 8, SPRITE_SIZE, 0.08f)
 
-        // Jump animations
-        playerJumpLeft = loadAnimation("textures/player/jump.png", 1, 1, 0.15f)
-        playerJumpRight = playerJumpLeft
+        // ==================== ATTACK/SLASH ANIMATIONS (384x256 = 6 cols x 4 rows) ====================
+        val attackDown = loadAnimationFromRow("textures/player/slash.png", 0, 6, SPRITE_SIZE, 0.08f)
+        playerAttackLeft = loadAnimationFromRow("textures/player/slash.png", 1, 6, SPRITE_SIZE, 0.08f)
+        playerAttackRight = loadAnimationFromRow("textures/player/slash.png", 2, 6, SPRITE_SIZE, 0.08f)
 
-        // Hurt animation
-        playerHurt = loadAnimation("textures/player/hurt.png", 1, 1, 0.1f)
+        // ==================== JUMP ANIMATIONS (320x256 = 5 cols x 4 rows) ====================
+        val jumpDown = loadAnimationFromRow("textures/player/jump.png", 0, 5, SPRITE_SIZE, 0.12f)
+        playerJumpLeft = loadAnimationFromRow("textures/player/jump.png", 1, 5, SPRITE_SIZE, 0.12f)
+        playerJumpRight = loadAnimationFromRow("textures/player/jump.png", 2, 5, SPRITE_SIZE, 0.12f)
+
+        // ==================== HURT ANIMATION (384x64 = 6 cols x 1 row) ====================
+        playerHurt = loadAnimationFromRow("textures/player/hurt.png", 0, 6, SPRITE_SIZE, 0.1f)
+
+        DebugLogger.log("Assets", "Player animations loaded successfully")
+    }
+
+    /**
+     * Loads an animation from a specific row of a sprite sheet
+     *
+     * @param path Path to the sprite sheet
+     * @param rowIndex The row index (0-based)
+     * @param frameCount Number of frames in the row
+     * @param spriteSize Size of each sprite (assumes square sprites)
+     * @param frameDuration Duration of each frame in seconds
+     * @return Animation or null if loading fails
+     */
+    private fun loadAnimationFromRow(
+        path: String,
+        rowIndex: Int,
+        frameCount: Int,
+        spriteSize: Int,
+        frameDuration: Float
+    ): Animation<TextureRegion>? {
+        return try {
+            val texture = Texture(Gdx.files.internal(path))
+
+            // Boundary checking
+            val expectedWidth = frameCount * spriteSize
+            val expectedY = rowIndex * spriteSize + spriteSize
+
+            if (expectedWidth > texture.width) {
+                DebugLogger.error("Assets", "Row exceeds texture width in $path: " +
+                    "expected $expectedWidth, got ${texture.width}")
+                return null
+            }
+
+            if (expectedY > texture.height) {
+                DebugLogger.error("Assets", "Row $rowIndex exceeds texture height in $path: " +
+                    "expected Y=${expectedY}, got height=${texture.height}")
+                return null
+            }
+
+            val frameArray = GdxArray<TextureRegion>()
+            for (i in 0 until frameCount) {
+                val region = TextureRegion(
+                    texture,
+                    i * spriteSize,           // X position
+                    rowIndex * spriteSize,    // Y position (row)
+                    spriteSize,               // width
+                    spriteSize                // height
+                )
+                frameArray.add(region)
+            }
+
+            Animation(frameDuration, frameArray, Animation.PlayMode.LOOP)
+        } catch (e: Exception) {
+            DebugLogger.error("Assets", "Could not load animation from row: $path, row $rowIndex")
+            e.printStackTrace()
+            null
+        }
     }
 
     private fun loadEnemyAssets() {
@@ -373,43 +436,46 @@ object Assets {
     }
 
     private fun createPlaceholderAssets() {
-        println("Creating placeholder assets...")
+        DebugLogger.warn("Assets", "Creating placeholder assets...")
 
         placeholderTexture = createColorTexture(64, 64, 1f, 1f, 1f)
         placeholderRegion = TextureRegion(placeholderTexture)
 
         val region = placeholderRegion!!
 
+        // Player animations - all directions
         playerIdleDown = Animation(0.2f, region)
-        playerIdleUp = playerIdleDown
-        playerIdleLeft = playerIdleDown
-        playerIdleRight = playerIdleDown
+        playerIdleUp = Animation(0.2f, region)
+        playerIdleLeft = Animation(0.2f, region)
+        playerIdleRight = Animation(0.2f, region)
 
-        playerWalkDown = Animation(0.15f, region)
-        playerWalkUp = playerWalkDown
-        playerWalkLeft = playerWalkDown
-        playerWalkRight = playerWalkDown
+        playerWalkDown = Animation(0.1f, region)
+        playerWalkUp = Animation(0.1f, region)
+        playerWalkLeft = Animation(0.1f, region)
+        playerWalkRight = Animation(0.1f, region)
 
-        playerRunDown = playerWalkDown
-        playerRunUp = playerWalkDown
-        playerRunLeft = playerWalkDown
-        playerRunRight = playerWalkDown
+        playerRunDown = Animation(0.08f, region)
+        playerRunUp = Animation(0.08f, region)
+        playerRunLeft = Animation(0.08f, region)
+        playerRunRight = Animation(0.08f, region)
 
-        playerAttackLeft = playerIdleDown
-        playerAttackRight = playerIdleDown
+        playerAttackLeft = Animation(0.08f, region)
+        playerAttackRight = Animation(0.08f, region)
 
-        playerJumpLeft = playerIdleDown
-        playerJumpRight = playerIdleDown
+        playerJumpLeft = Animation(0.12f, region)
+        playerJumpRight = Animation(0.12f, region)
 
-        playerHurt = playerIdleDown
+        playerHurt = Animation(0.1f, region)
 
+        // Enemy animations
         agentAnimation = Animation(0.15f, region)
         enemyAnimation = agentAnimation
-        jaguarAnimation = agentAnimation
-        monkeyAnimation = agentAnimation
-        batAnimation = agentAnimation
+        jaguarAnimation = Animation(0.15f, region)
+        monkeyAnimation = Animation(0.15f, region)
+        batAnimation = Animation(0.15f, region)
         npcIdle = Animation(0.2f, region)
 
+        // Object textures
         keyImage = region
         talismanImage = region
         chestClosed = region
