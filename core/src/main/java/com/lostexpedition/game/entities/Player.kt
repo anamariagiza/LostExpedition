@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Rectangle
 import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.tiles.Tile
+import com.lostexpedition.game.tiles.TileConstants
 import com.lostexpedition.game.utils.RefLinks
 import kotlin.math.abs
 
@@ -221,11 +222,12 @@ class Player(
 
         val newX = x + xMove
         val map = refLink.map ?: return
+        val TS = TileConstants.TILE_SIZE
 
-        val tileXLeft = ((newX) / Tile.TILE_WIDTH).toInt()
-        val tileXRight = ((newX + width - 1) / Tile.TILE_WIDTH).toInt()
-        val tileYBottom = (y / Tile.TILE_HEIGHT).toInt()
-        val tileYTop = ((y + height - 1) / Tile.TILE_HEIGHT).toInt()
+        val tileXLeft = ((newX) / TS).toInt()
+        val tileXRight = ((newX + width - 1) / TS).toInt()
+        val tileYBottom = (y / TS).toInt()
+        val tileYTop = ((y + height - 1) / TS).toInt()
 
         var canMove = true
         for (tileY in tileYBottom..tileYTop) {
@@ -252,11 +254,12 @@ class Player(
 
         val newY = y + yMove
         val map = refLink.map ?: return
+        val TS = TileConstants.TILE_SIZE
 
-        val tileXLeft = (x / Tile.TILE_WIDTH).toInt()
-        val tileXRight = ((x + width - 1) / Tile.TILE_WIDTH).toInt()
-        val tileYBottom = ((newY) / Tile.TILE_HEIGHT).toInt()
-        val tileYTop = ((newY + height - 1) / Tile.TILE_HEIGHT).toInt()
+        val tileXLeft = (x / TS).toInt()
+        val tileXRight = ((x + width - 1) / TS).toInt()
+        val tileYBottom = ((newY) / TS).toInt()
+        val tileYTop = ((newY + height - 1) / TS).toInt()
 
         var canMove = true
         for (tileX in tileXLeft..tileXRight) {
