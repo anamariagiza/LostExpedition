@@ -235,6 +235,11 @@ class Agent(
             if (flipX) -width.toFloat() else width.toFloat(),
             height.toFloat()
         )
+
+        // Draw health bar above the agent (like Java version)
+        if (health < maxHealth) {
+            drawHealthBar(batch, health, maxHealth)
+        }
     }
 
     override fun dispose() {

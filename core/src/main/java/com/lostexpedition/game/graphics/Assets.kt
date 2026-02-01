@@ -6,7 +6,17 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.utils.Array as GdxArray
+import com.lostexpedition.game.tiles.TileConstants
+import com.lostexpedition.game.utils.DebugLogger
 
+/**
+ * Assets - Centralized asset loading and management
+ *
+ * Handles loading of all game textures, animations, and sprites.
+ * Includes sprite sheet boundary checking (like Java version).
+ *
+ * @author LostExpedition Team
+ */
 object Assets {
     // ==================== PLAYER ANIMATIONS ====================
     var playerIdleDown: Animation<TextureRegion>? = null
@@ -182,6 +192,12 @@ object Assets {
     /**
      * Load a texture and create an animation from it
      * For sprite sheets, specify rows and cols
+     *
+     * @param path Path to the texture file
+     * @param rows Number of rows in the sprite sheet
+     * @param cols Number of columns in the sprite sheet
+     * @param frameDuration Duration of each frame in seconds
+     * @return Animation or null if loading fails
      */
     private fun loadAnimation(
         path: String,
@@ -191,11 +207,16 @@ object Assets {
     ): Animation<TextureRegion>? {
         return try {
             val texture = Texture(Gdx.files.internal(path))
-            val frames = TextureRegion.split(
-                texture,
-                texture.width / cols,
-                texture.height / rows
-            )
+
+            // Sprite sheet boundary checking (like Java version)
+            val frameWidth = texture.width / cols
+            val frameHeight = texture.height / rows
+
+            if (!checkSpriteSheetBounds(texture, frameWidth, frameHeight, rows, cols)) {
+                DebugLogger.warn("Assets", "Sprite sheet bounds issue in: $path")
+            }
+
+            val frames = TextureRegion.split(texture, frameWidth, frameHeight)
 
             val frameArray = GdxArray<TextureRegion>()
             for (row in frames) {
@@ -206,9 +227,136 @@ object Assets {
 
             Animation(frameDuration, frameArray, Animation.PlayMode.LOOP)
         } catch (e: Exception) {
-            println("⚠️ Could not load animation: $path")
+            DebugLogger.warn("Assets", "Could not load animation: $path")
             null
         }
+    }
+
+    /**
+     * Load animation with variable rectangle frame cropping (like Java version)
+     *
+     * Allows specifying exact frame dimensions and positions for non-uniform sprite sheets.
+     *
+     * @param path Path to the texture file
+     * @param frameX Starting X position of the first frame
+     * @param frameY Starting Y position of the first frame
+     * @param frameWidth Width of each frame
+     * @param frameHeight Height of each frame
+     * @param frameCount Number of frames to extract
+     * @param frameDuration Duration of each frame in seconds
+     * @return Animation or null if loading fails
+     */
+    private fun loadAnimationCropped(
+        path: String,
+        frameX: Int,
+        frameY: Int,
+        frameWidth: Int,
+        frameHeight: Int,
+        frameCount: Int,
+        frameDuration: Float = 0.15f
+    ): Animation<TextureRegion>? {
+        return try {
+            val texture = Texture(Gdx.files.internal(path))
+
+            // Boundary checking
+            if (frameX + frameWidth * frameCount > texture.width) {
+                DebugLogger.warn("Assets", "Frame width exceeds texture bounds in: $path")
+                return null
+            }
+            if (frameY + frameHeight > texture.height) {
+                DebugLogger.warn("Assets", "Frame height exceeds texture bounds in: $path")
+                return null
+            }
+
+            val frameArray = GdxArray<TextureRegion>()
+            for (i in 0 until frameCount) {
+                val region = TextureRegion(
+                    texture,
+                    frameX + i * frameWidth,
+                    frameY,
+                    frameWidth,
+                    frameHeight
+                )
+                frameArray.add(region)
+            }
+
+            Animation(frameDuration, frameArray, Animation.PlayMode.LOOP)
+        } catch (e: Exception) {
+            DebugLogger.warn("Assets", "Could not load cropped animation: $path")
+            null
+        }
+    }
+
+    /**
+     * Checks if sprite sheet dimensions are valid
+     *
+     * @param texture The texture to check
+     * @param frameWidth Width of each frame
+     * @param frameHeight Height of each frame
+     * @param rows Number of rows
+     * @param cols Number of columns
+     * @return True if bounds are valid
+     */
+    private fun checkSpriteSheetBounds(
+        texture: Texture,
+        frameWidth: Int,
+        frameHeight: Int,
+        rows: Int,
+        cols: Int
+    ): Boolean {
+        val expectedWidth = frameWidth * cols
+        val expectedHeight = frameHeight * rows
+
+        if (expectedWidth > texture.width) {
+            DebugLogger.error("Assets",
+                "Sprite sheet width overflow: expected $expectedWidth, got ${texture.width}")
+            return false
+        }
+
+        if (expectedHeight > texture.height) {
+            DebugLogger.error("Assets",
+                "Sprite sheet height overflow: expected $expectedHeight, got ${texture.height}")
+            return false
+        }
+
+        // Check for remainder (non-even division)
+        if (texture.width % cols != 0) {
+            DebugLogger.verbose("Assets",
+                "Texture width ${texture.width} does not divide evenly by $cols columns")
+        }
+
+        if (texture.height % rows != 0) {
+            DebugLogger.verbose("Assets",
+                "Texture height ${texture.height} does not divide evenly by $rows rows")
+        }
+
+        return true
+    }
+
+    /**
+     * Crop a single frame from a texture (like Java version's crop method)
+     *
+     * @param texture The source texture
+     * @param x Starting X position
+     * @param y Starting Y position
+     * @param width Frame width
+     * @param height Frame height
+     * @return TextureRegion of the cropped area
+     */
+    fun cropFrame(texture: Texture, x: Int, y: Int, width: Int, height: Int): TextureRegion {
+        // Boundary checking
+        val safeX = x.coerceIn(0, texture.width - 1)
+        val safeY = y.coerceIn(0, texture.height - 1)
+        val safeWidth = width.coerceAtMost(texture.width - safeX)
+        val safeHeight = height.coerceAtMost(texture.height - safeY)
+
+        if (safeX != x || safeY != y || safeWidth != width || safeHeight != height) {
+            DebugLogger.warn("Assets",
+                "Crop bounds adjusted: requested ($x,$y,$width,$height), " +
+                "using ($safeX,$safeY,$safeWidth,$safeHeight)")
+        }
+
+        return TextureRegion(texture, safeX, safeY, safeWidth, safeHeight)
     }
 
     /**

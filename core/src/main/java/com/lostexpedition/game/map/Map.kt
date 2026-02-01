@@ -7,9 +7,21 @@ import com.badlogic.gdx.maps.tiled.TmxMapLoader
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer
 import com.lostexpedition.game.tiles.Tile
 import com.lostexpedition.game.tiles.TileConstants
+import com.lostexpedition.game.tiles.TileFactory
+import com.lostexpedition.game.utils.DebugLogger
 import com.lostexpedition.game.utils.RefLinks
 
-// Constructorul primește levelIndex pentru a ști ce reguli de coliziune să aplice
+/**
+ * Map - Manages the game map loaded from TMX files
+ *
+ * Handles map rendering, tile retrieval, and collision detection.
+ * Uses TileFactory for efficient tile caching with Flyweight pattern.
+ *
+ * @param refLink Reference to game utilities
+ * @param path Path to the TMX map file
+ * @param levelIndex The level index (0, 1, 2) for level-specific collision rules
+ * @author LostExpedition Team
+ */
 class Map(private val refLink: RefLinks, path: String, private val levelIndex: Int) {
 
     val tiledMap: TiledMap = TmxMapLoader().load(path)
@@ -18,29 +30,105 @@ class Map(private val refLink: RefLinks, path: String, private val levelIndex: I
     val width: Int = (tiledMap.layers[0] as TiledMapTileLayer).width
     val height: Int = (tiledMap.layers[0] as TiledMapTileLayer).height
 
-    fun update() {
-        // Logică update hartă
+    init {
+        DebugLogger.log("Map", "Loaded map: $path (${width}x${height} tiles, level $levelIndex)")
+        // Clear tile cache when loading new map
+        TileFactory.clearCache()
     }
 
-    // ✅ FIX: Am scos parametrul 'batch' care nu era folosit
+    /**
+     * Updates the map state
+     */
+    fun update() {
+        // Map update logic (if needed)
+    }
+
+    /**
+     * Renders the map
+     * @param camera The camera to render with
+     */
     fun render(camera: OrthographicCamera) {
         renderer.setView(camera)
         renderer.render()
     }
 
+    /**
+     * Gets a tile at the specified coordinates using TileFactory
+     *
+     * @param x Tile X coordinate
+     * @param y Tile Y coordinate
+     * @return The Tile at that position
+     */
     fun getTile(x: Int, y: Int): Tile {
         if (x < 0 || x >= width || y < 0 || y >= height) {
-            return Tile(TileConstants.WALL_TILE_SOLID, true)
+            return TileFactory.createWallTile(TileConstants.WALL_TILE_SOLID)
         }
 
         val layer = tiledMap.layers[0] as TiledMapTileLayer
         val cell = layer.getCell(x, y)
         val gid = cell?.tile?.id ?: 0
 
-        // Verificăm soliditatea folosind indexul nivelului primit în constructor
-        val solid = isSolidInternal(gid, x, y, levelIndex)
+        // Use TileFactory for efficient tile creation with caching
+        return TileFactory.getTile(gid, levelIndex)
+    }
 
-        return Tile(gid, solid)
+    /**
+     * Checks if a tile at the given coordinates is solid
+     *
+     * @param x Tile X coordinate
+     * @param y Tile Y coordinate
+     * @return True if the tile is solid
+     */
+    fun isTileSolid(x: Int, y: Int): Boolean {
+        return getTile(x, y).isSolid
+    }
+
+    /**
+     * Checks if a tile is a trap tile
+     *
+     * @param x Tile X coordinate
+     * @param y Tile Y coordinate
+     * @return True if the tile is a trap
+     */
+    fun isTrapTile(x: Int, y: Int): Boolean {
+        return getTile(x, y).isTrap()
+    }
+
+    /**
+     * Checks if a tile is a door tile
+     *
+     * @param x Tile X coordinate
+     * @param y Tile Y coordinate
+     * @return True if the tile is a door
+     */
+    fun isDoorTile(x: Int, y: Int): Boolean {
+        return getTile(x, y).isDoor()
+    }
+
+    /**
+     * Checks if a tile is a top door tile (for special collision detection)
+     *
+     * @param x Tile X coordinate
+     * @param y Tile Y coordinate
+     * @return True if the tile is a top door
+     */
+    fun isTopDoorTile(x: Int, y: Int): Boolean {
+        return getTile(x, y).isTopDoor()
+    }
+
+    /**
+     * Gets the GID of a tile at the specified coordinates
+     *
+     * @param x Tile X coordinate
+     * @param y Tile Y coordinate
+     * @return The tile GID or 0 if out of bounds
+     */
+    fun getTileGid(x: Int, y: Int): Int {
+        if (x < 0 || x >= width || y < 0 || y >= height) return 0
+
+        val layer = tiledMap.layers[0] as TiledMapTileLayer
+        val cell = layer.getCell(x, y)
+        return cell?.tile?.id ?: 0
     }
 
     fun changeTileGid(x: Int, y: Int, newGid: Int, layerIndex: Int = 0) {

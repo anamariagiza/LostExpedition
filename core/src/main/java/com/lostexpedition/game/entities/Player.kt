@@ -11,6 +11,38 @@ import com.lostexpedition.game.tiles.Tile
 import com.lostexpedition.game.utils.RefLinks
 import kotlin.math.abs
 
+/**
+ * Direction enum - Represents the four cardinal directions (like Java version)
+ */
+enum class Direction {
+    UP, DOWN, LEFT, RIGHT;
+
+    companion object {
+        /**
+         * Gets the opposite direction
+         */
+        fun opposite(dir: Direction): Direction {
+            return when (dir) {
+                UP -> DOWN
+                DOWN -> UP
+                LEFT -> RIGHT
+                RIGHT -> LEFT
+            }
+        }
+    }
+}
+
+/**
+ * Player - The main playable character
+ *
+ * Handles player input, movement, combat, and animations.
+ * Supports both keyboard and touch controls.
+ *
+ * @param refLink Reference to game utilities
+ * @param startX Starting X position
+ * @param startY Starting Y position
+ * @author LostExpedition Team
+ */
 class Player(
     refLink: RefLinks,
     startX: Float,
@@ -30,6 +62,10 @@ class Player(
     private var stateTime = 0f
     private lateinit var currentAnimation: Animation<TextureRegion>
     private var currentFrame: TextureRegion
+
+    /** Current facing direction (using Direction enum) */
+    var direction: Direction = Direction.DOWN
+        private set
 
     private var facingRight = true
     private var facingDown = true
@@ -138,6 +174,9 @@ class Player(
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && !isAttacking) {
             performAttack()
         }
+
+        // Update direction enum based on movement
+        updateDirection()
     }
 
     private fun performAttack() {
@@ -315,15 +354,58 @@ class Player(
         isHurt = false
     }
 
-    // ✅ FIX: Poate folosi setPosition din Entity (care acum e open)
-    // SAU poate override dacă ai logică extra:
+    /**
+     * Sets the entity position and updates bounds
+     */
     override fun setPosition(newX: Float, newY: Float) {
         super.setPosition(newX, newY)
-        // Aici poți adăuga logică extra dacă e nevoie
+        updateBounds()
     }
 
+    /**
+     * Updates the player bounds after position change
+     */
+    override fun updateBounds() {
+        // Bounds are dynamically calculated via property getter
+        // This override can be used for additional logic if needed
+    }
+
+    /**
+     * Updates the current direction based on movement
+     */
+    private fun updateDirection() {
+        direction = when {
+            abs(xMove) > abs(yMove) -> if (facingRight) Direction.RIGHT else Direction.LEFT
+            yMove > 0 -> Direction.UP
+            yMove < 0 -> Direction.DOWN
+            else -> direction // Keep current direction if not moving
+        }
+    }
+
+    /**
+     * Gets the maximum health value
+     * @return Maximum health
+     */
     fun getMaxHealth(): Int = maxHealth
+
+    /**
+     * Checks if player is currently hurt
+     * @return True if player is hurt
+     */
     fun isPlayerHurt(): Boolean = isHurt
+
+    /**
+     * Gets the current facing direction
+     * @return Current Direction enum value
+     */
+    fun getFacingDirection(): Direction = direction
+
+    /**
+     * Checks if player is facing a specific direction
+     * @param dir The direction to check
+     * @return True if facing that direction
+     */
+    fun isFacing(dir: Direction): Boolean = direction == dir
 
     override fun render(batch: SpriteBatch) {
         batch.draw(currentFrame, x, y, width.toFloat(), height.toFloat())
