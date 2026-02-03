@@ -140,8 +140,8 @@ class Player(
                 }
             }
 
-            // ✅ FIX: Attack button - folosește isAttackPressed
-            if (touchController.isAttackPressed && !isAttacking) {
+            // Attack button - use "just pressed" for single-fire
+            if (touchController.isAttackJustPressed && !isAttacking) {
                 performAttack()
             }
 

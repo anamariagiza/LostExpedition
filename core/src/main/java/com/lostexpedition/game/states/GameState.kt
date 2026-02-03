@@ -408,7 +408,7 @@ class GameState(
     private fun updateLevel1Logic() {
         caveGuardianNPC?.let { npc ->
             if (player.bounds.overlaps(npc.bounds)) {
-                if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) {
+                if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) {
                     if (hasTalisman) {
                         caveEntranceUnlocked = true
                         removeTalismanFromInventory()
@@ -422,7 +422,7 @@ class GameState(
 
         caveEntrance?.let { entrance ->
             if (player.bounds.overlaps(entrance.bounds) &&
-                (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed)
+                (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed)
             ) {
                 if (caveEntranceUnlocked && hasDoorKeys[0]) {
                     passToLevel2()
@@ -438,7 +438,7 @@ class GameState(
     }
 
     private fun updateLevel2Logic() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) {
             checkAndOpenDoor()
         }
 
@@ -468,7 +468,7 @@ class GameState(
         val tableTileY = 26
 
         if (abs(playerTileX - tableTileX) <= 1 && abs(playerTileY - tableTileY) <= 1) {
-            if ((Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) && woodSignMessage == null) {
+            if ((Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) && woodSignMessage == null) {
                 refLink.setState(WordPuzzleState(refLink))
             }
         }
@@ -637,7 +637,7 @@ class GameState(
         val playerTileY = getPlayerTileY()
 
         if (abs(playerTileX - doorTileX) <= 2 && abs(playerTileY - doorTileY) <= 2) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) {
                 if (hasDoorKeys.size > 6 && hasDoorKeys[6]) {
                     openFinalDoor()
                 } else {

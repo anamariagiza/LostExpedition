@@ -28,6 +28,16 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
     var isInteractPressed = false
         private set
 
+    // "Just pressed" flags - true only for one frame after press
+    var isAttackJustPressed = false
+        private set
+    var isInteractJustPressed = false
+        private set
+
+    // Previous frame state for edge detection
+    private var wasAttackPressed = false
+    private var wasInteractPressed = false
+
     // Helpers pentru TestScreen
     fun getMoveDirection(): Vector2 {
         return Vector2(joystickDeltaX, joystickDeltaY)
@@ -50,6 +60,13 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
 
         isAttackPressed = attackButton.isPressed
         isInteractPressed = interactButton.isPressed
+
+        // Edge detection: "just pressed" is true only on the frame the button transitions from not-pressed to pressed
+        isAttackJustPressed = isAttackPressed && !wasAttackPressed
+        isInteractJustPressed = isInteractPressed && !wasInteractPressed
+
+        wasAttackPressed = isAttackPressed
+        wasInteractPressed = isInteractPressed
     }
 
     fun touchDown(screenX: Float, screenY: Float, pointer: Int): Boolean {
