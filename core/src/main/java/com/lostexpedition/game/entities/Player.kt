@@ -92,8 +92,8 @@ class Player(
     }
 
     override fun update() {
-        // ✅ FIX: Update TouchController FIRST
-        refLink.touchController?.update()
+        // TouchController is updated by GameState - do NOT call update() here
+        // as it would reset isInteractJustPressed before interaction logic runs
 
         handleInput()
         move()
@@ -123,7 +123,7 @@ class Player(
 
         val touchController = refLink.touchController
 
-        // ✅ Android touch controls
+        // Android touch controls (update() is already called by GameState, don't call again)
         if (touchController != null) {
             if (touchController.isJoystickActive) {
                 val joyX = touchController.joystickDeltaX
