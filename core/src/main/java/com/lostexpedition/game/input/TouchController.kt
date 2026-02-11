@@ -1,5 +1,6 @@
 package com.lostexpedition.game.input
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Vector2
@@ -28,6 +29,16 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
     var isInteractPressed = false
         private set
 
+    // "Just pressed" flags - true only for one frame after press
+    var isAttackJustPressed = false
+        private set
+    var isInteractJustPressed = false
+        private set
+
+    // Previous frame state for edge detection
+    private var wasAttackPressed = false
+    private var wasInteractPressed = false
+
     // Helpers pentru TestScreen
     fun getMoveDirection(): Vector2 {
         return Vector2(joystickDeltaX, joystickDeltaY)
@@ -50,6 +61,13 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
 
         isAttackPressed = attackButton.isPressed
         isInteractPressed = interactButton.isPressed
+
+        // Edge detection: "just pressed" is true only on the frame the button transitions from not-pressed to pressed
+        isAttackJustPressed = isAttackPressed && !wasAttackPressed
+        isInteractJustPressed = isInteractPressed && !wasInteractPressed
+
+        wasAttackPressed = isAttackPressed
+        wasInteractPressed = isInteractPressed
     }
 
     fun touchDown(screenX: Float, screenY: Float, pointer: Int): Boolean {
@@ -109,6 +127,10 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
     }
 
     fun draw() {
+        // ✅ FIX: Setăm proiecția pe dimensiunea ecranului (UI Mode)
+        // Asta asigură că joystick-ul stă lipit de ecran, indiferent unde merge player-ul pe hartă
+        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
 
         // Desenare Joystick
