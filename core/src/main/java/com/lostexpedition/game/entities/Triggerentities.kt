@@ -20,7 +20,7 @@ class Chest(
 
     private var canInteract = false
     private val closedImage: TextureRegion? = Assets.chestClosed
-    private val openImage: TextureRegion? = Assets.chestOpen
+    private val openImage: TextureRegion? = Assets.chestOpened
     private var isOpen = false
 
     fun setCanInteract(interact: Boolean) {
