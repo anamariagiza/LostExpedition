@@ -88,6 +88,8 @@ class GameState(
     private val font = BitmapFont()
     private val shapeRenderer = ShapeRenderer()
 
+    private val currentZoom = 0.9f
+
     init {
         refLink.gameState = this
 
@@ -110,6 +112,9 @@ class GameState(
         }
 
         initLevelInternal(currentLevelIndex, false)
+
+        refLink.gameCamera.zoom = currentZoom
+        refLink.gameCamera.update()
     }
 
     private fun initLevelInternal(desiredLevelIndex: Int, loadPlayerStateFromDb: Boolean) {
@@ -177,6 +182,21 @@ class GameState(
         // Centrare inițială cameră
         refLink.gameCamera.position.set(player.x, player.y, 0f)
         refLink.gameCamera.update()
+
+        // După refLink.gameCamera.updateCamera()
+        val mapWidth = currentMap.width * TileConstants.TILE_SIZE
+        val mapHeight = currentMap.height * TileConstants.TILE_SIZE
+
+// Coordonatele camerei limitate la marginile hărții
+        val camX = refLink.gameCamera.position.x.coerceIn(
+            refLink.gameCamera.viewportWidth / 2f,
+            mapWidth - refLink.gameCamera.viewportWidth / 2f
+        )
+        val camY = refLink.gameCamera.position.y.coerceIn(
+            refLink.gameCamera.viewportHeight / 2f,
+            mapHeight - refLink.gameCamera.viewportHeight / 2f
+        )
+        refLink.gameCamera.position.set(camX, camY, 0f)
 
         entities.clear()
         loadLevelEntities()
@@ -389,26 +409,37 @@ class GameState(
         }
 
         // ===================================================================================
-        // MODIFICARE CAMERĂ (ECHIVALENT JAVA checkBlankSpace)
+        // LOGICA DE CAMERĂ SIMPLIFICATĂ (Zoom fix 0.9 + Clamping)
         // ===================================================================================
         val gameCamera = refLink.gameCamera
 
-        // 1. Centrare pe jucător
+        // 1. Centrare pe jucător (centrul sprite-ului)
         gameCamera.position.x = player.x + player.width / 2
         gameCamera.position.y = player.y + player.height / 2
 
-        // 2. Calcul limite
-        val mapWidthPixels = currentMap.width * TileConstants.TILE_SIZE
-        val mapHeightPixels = currentMap.height * TileConstants.TILE_SIZE
-        val camHalfW = gameCamera.viewportWidth / 2
-        val camHalfH = gameCamera.viewportHeight / 2
+        // 2. Calcul limite hărții (în pixeli)
+        val mapWidthPixels = currentMap.width * TileConstants.TILE_SIZE.toFloat()
+        val mapHeightPixels = currentMap.height * TileConstants.TILE_SIZE.toFloat()
 
-        // 3. Clamping (Restricționare) - Camera nu iese din hartă
-        gameCamera.position.x = MathUtils.clamp(gameCamera.position.x, camHalfW, mapWidthPixels - camHalfW)
-        gameCamera.position.y = MathUtils.clamp(gameCamera.position.y, camHalfH, mapHeightPixels - camHalfH)
+        // 3. Calcul viewport efectiv cu zoom-ul de 0.9
+        // La zoom 0.9, camera vede mai mult din hartă
+        val effectiveViewportWidth = gameCamera.viewportWidth * currentZoom
+        val effectiveViewportHeight = gameCamera.viewportHeight * currentZoom
+
+        // 4. Clamping (Restricționare) - Camera nu depășește marginile hărții
+        // Aceasta este transpunerea logică a checkBlankSpace din Java
+        gameCamera.position.x = com.badlogic.gdx.math.MathUtils.clamp(
+            gameCamera.position.x,
+            effectiveViewportWidth / 2f,
+            mapWidthPixels - effectiveViewportWidth / 2f
+        )
+        gameCamera.position.y = com.badlogic.gdx.math.MathUtils.clamp(
+            gameCamera.position.y,
+            effectiveViewportHeight / 2f,
+            mapHeightPixels - effectiveViewportHeight / 2f
+        )
 
         gameCamera.update()
-        currentMap.render(gameCamera) // Actualizează vizualizarea hărții doar dacă e necesar
         // ===================================================================================
 
         updateLevelSpecificLogic(delta)
