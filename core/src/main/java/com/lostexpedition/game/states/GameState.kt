@@ -4,23 +4,13 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Rectangle
-import com.lostexpedition.game.entities.Agent
-import com.lostexpedition.game.entities.Animal
-import com.lostexpedition.game.entities.CaveEntrance
-import com.lostexpedition.game.entities.Chest
-import com.lostexpedition.game.entities.DecorativeObject
-import com.lostexpedition.game.entities.Entity
-import com.lostexpedition.game.entities.Key
-import com.lostexpedition.game.entities.LevelExit
-import com.lostexpedition.game.entities.NPC
-import com.lostexpedition.game.entities.Player
-import com.lostexpedition.game.entities.PuzzleTrigger
-import com.lostexpedition.game.entities.Talisman
-import com.lostexpedition.game.entities.Trap
-import com.lostexpedition.game.entities.TrapTrigger
+import com.lostexpedition.game.entities.*
 import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.map.FogOfWar
 import com.lostexpedition.game.map.Map
@@ -81,7 +71,6 @@ class GameState(
     private var trapActivationTime = 0L
     private val arenaTraps = mutableListOf<Trap>()
 
-
     private val puzzleKeyPositions = arrayOf(
         intArrayOf(18, 22), intArrayOf(35, 16), intArrayOf(52, 22),
         intArrayOf(69, 13), intArrayOf(86, 22)
@@ -100,8 +89,26 @@ class GameState(
     private val shapeRenderer = ShapeRenderer()
 
     init {
-        // Fix critic: Setăm gameState în RefLinks
         refLink.gameState = this
+
+        // Configurare Input Processor pentru TouchController
+        Gdx.input.inputProcessor = object : com.badlogic.gdx.InputAdapter() {
+            override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
+                val gameY = Gdx.graphics.height - screenY.toFloat()
+                return refLink.touchController.touchDown(screenX.toFloat(), gameY, pointer)
+            }
+
+            override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
+                val gameY = Gdx.graphics.height - screenY.toFloat()
+                return refLink.touchController.touchUp(screenX.toFloat(), gameY, pointer)
+            }
+
+            override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
+                val gameY = Gdx.graphics.height - screenY.toFloat()
+                return refLink.touchController.touchDragged(screenX.toFloat(), gameY, pointer)
+            }
+        }
+
         initLevelInternal(currentLevelIndex, false)
     }
 
@@ -110,26 +117,19 @@ class GameState(
         var playerStartY = 100f
         var loadedHealth = 100
 
-        // Resetăm indexul dacă e invalid
         currentLevelIndex = if (desiredLevelIndex in levelPaths.indices) desiredLevelIndex else 0
 
-        // 1. Încărcare Hartă (Constructor nou: refLink, cale, index)
         currentMap = Map(refLink, levelPaths[currentLevelIndex], currentLevelIndex)
         refLink.map = currentMap
+        // Setăm limitele hărții în cameră, dar controlul fin îl facem în update()
         refLink.gameCamera.setMapBounds(currentMap.width, currentMap.height)
         fogOfWar = FogOfWar(refLink, currentMap.width, currentMap.height)
 
         val TS = TileConstants.TILE_SIZE
-        val mapHeightPixels = currentMap.height * TS
 
-        val startX = 2f * TS
-        val startY = mapHeightPixels - (2f + 1) * TS // (2+1) pentru că sprite-ul are punctul de origine jos
-
-        player = Player(refLink, startX, startY)
-
+        // Încărcare stare din baza de date sau setare default
         if (loadPlayerStateFromDb) {
             val loadedDataList = refLink.databaseManager.loadGameData()
-
             if (loadedDataList.isNotEmpty()) {
                 val data = loadedDataList[0]
                 currentLevelIndex = data.levelIndex
@@ -152,27 +152,20 @@ class GameState(
                 resetToDefaults()
             }
         } else {
-            // Joc nou - Setăm pozițiile manual
+            // Setări default pentru joc nou (folosind conversia de coordonate)
             currentLevelIndex = desiredLevelIndex
-
-            // Helper pentru a calcula Y corect (de sus în jos, ca în desktop)
-            val mapH = currentMap.height
-            val TS = TileConstants.TILE_SIZE
-
-            // Funcție locală: Îi dai Y-ul de sus (ex: 2), ea ți-l dă pe cel de jos
-            fun getTopDownY(gridY: Int): Float = (mapH - 1 - gridY) * TS
             when (currentLevelIndex) {
                 0 -> {
                     playerStartX = 2f * TS
-                    playerStartY = getTopDownY(2)
+                    playerStartY = topDownY(2) // Echivalent cu Y=2 în Tiled (Sus)
                 }
                 1 -> {
                     playerStartX = 2f * TS
-                    playerStartY = getTopDownY(26)
+                    playerStartY = topDownY(26)
                 }
                 2 -> {
                     playerStartX = 37f * TS
-                    playerStartY = getTopDownY(57)
+                    playerStartY = topDownY(57)
                 }
             }
         }
@@ -181,7 +174,7 @@ class GameState(
         player.health = loadedHealth
         refLink.player = player
 
-        // Setăm camera pe player
+        // Centrare inițială cameră
         refLink.gameCamera.position.set(player.x, player.y, 0f)
         refLink.gameCamera.update()
 
@@ -207,43 +200,45 @@ class GameState(
         }
     }
 
-    /** Converts a Java top-down grid Y coordinate to LibGDX bottom-up pixel Y */
+    /** * Convertește coordonata Y din sistemul "Top-Down" (Tiled/Java) în "Bottom-Up" (LibGDX).
+     * @param gridY Coordonata Y în tile-uri (de sus în jos, începând de la 0).
+     */
     private fun topDownY(gridY: Int): Float {
         return (currentMap.height - 1 - gridY) * TileConstants.TILE_SIZE
     }
 
-    /** Gets player tile X (same in both coordinate systems) */
     private fun getPlayerTileX(): Int = (player.x / TileConstants.TILE_SIZE).toInt()
-
-    /** Gets player tile Y in Java/TMX top-down coordinate system (for game logic comparisons) */
     private fun getPlayerTileY(): Int = currentMap.height - 1 - (player.y / TileConstants.TILE_SIZE).toInt()
 
-    /** Gets tile using Java/TMX top-down Y coordinate */
     private fun getTileJava(x: Int, javaY: Int): Tile {
         return currentMap.getTile(x, currentMap.height - 1 - javaY)
     }
 
-    /** Changes tile GID using Java/TMX top-down Y coordinate */
     private fun changeTileGidJava(x: Int, javaY: Int, newGid: Int, layerIndex: Int) {
         currentMap.changeTileGid(x, currentMap.height - 1 - javaY, newGid, layerIndex)
     }
 
+    // ==================== ÎNCĂRCARE ENTITĂȚI (COORDONATE FIXATE) ====================
+
     private fun loadLevel1Entities() {
         val TS = TileConstants.TILE_SIZE
 
+        // Animale - Coordonate din Java/Tiled (Y=0 e sus)
         entities.add(Animal(refLink, 53f * TS, topDownY(5), 51f * TS, 56f * TS, Animal.AnimalType.JAGUAR))
         entities.add(Animal(refLink, 10f * TS, topDownY(36), 8f * TS, 11f * TS, Animal.AnimalType.MONKEY))
         entities.add(Animal(refLink, 89f * TS, topDownY(29), 88f * TS, 91f * TS, Animal.AnimalType.MONKEY))
         entities.add(Animal(refLink, 84f * TS, topDownY(57), 82f * TS, 85f * TS, Animal.AnimalType.BAT))
 
-        entities.add(Trap(refLink, 66f * TS, topDownY(31), Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }))
-        entities.add(Trap(refLink, 67f * TS, topDownY(38), Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }))
-        entities.add(Trap(refLink, 66f * TS, topDownY(45), Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }))
+        // Capcane
+        entities.add(Trap(refLink, 66f * TS, topDownY(31), TextureRegion(Assets.spikeTrapImage)))
+        entities.add(Trap(refLink, 67f * TS, topDownY(38), TextureRegion(Assets.spikeTrapImage)))
+        entities.add(Trap(refLink, 66f * TS, topDownY(45), TextureRegion(Assets.spikeTrapImage)))
 
+        // NPC și Obiecte
         caveGuardianNPC = NPC(refLink, 93f * TS, topDownY(92))
         entities.add(caveGuardianNPC!!)
 
-        entities.add(Talisman(refLink, 45f * TS, topDownY(52), Assets.talismanImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }))
+        entities.add(Talisman(refLink, 45f * TS, topDownY(52), TextureRegion(Assets.talismanImage)))
 
         caveEntrance = CaveEntrance(refLink, 91f * TS, topDownY(88), (TS * 2).toInt(), (TS * 2).toInt())
         entities.add(caveEntrance!!)
@@ -252,9 +247,10 @@ class GameState(
             entities.add(Key(refLink, 12f * TS, topDownY(85), Assets.keyImage, 0))
         }
 
+        // Panoul de lemn (Lângă punctul de start al jucătorului la Y=2)
         val woodSign1 = DecorativeObject(
             refLink, 2f * TS, topDownY(1), 64, 64,
-            Assets.woodSignImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true
+            TextureRegion(Assets.woodSignImage), true
         )
         woodSign1.setDialogueMessage("Adună cheia și talismanul Lunii.")
         entities.add(woodSign1)
@@ -273,7 +269,7 @@ class GameState(
             entities.add(
                 DecorativeObject(
                     refLink, pixelX, pixelY, 96, 48,
-                    Assets.puzzleTableImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true
+                    TextureRegion(Assets.puzzleTableImage), true
                 )
             )
         }
@@ -296,7 +292,7 @@ class GameState(
 
         val woodSign2 = DecorativeObject(
             refLink, 3f * TS, topDownY(25), 64, 64,
-            Assets.woodSignImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true
+            TextureRegion(Assets.woodSignImage), true
         )
         woodSign2.setDialogueMessage("Rezolvă puzzle-urile.")
         entities.add(woodSign2)
@@ -309,7 +305,7 @@ class GameState(
         entities.add(
             DecorativeObject(
                 refLink, 75f * TS, topDownY(26), TS.toInt(), TS.toInt(),
-                Assets.puzzleTableImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true
+                TextureRegion(Assets.puzzleTableImage), true
             )
         )
 
@@ -335,7 +331,7 @@ class GameState(
         for (pos in trapTiles) {
             val trap = Trap(
                 refLink, pos[0] * TS, topDownY(pos[1]),
-                Assets.spikeTrapImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) })
+                TextureRegion(Assets.spikeTrapImage))
             entities.add(trap)
             arenaTraps.add(trap)
         }
@@ -363,11 +359,13 @@ class GameState(
 
         val woodSign3 = DecorativeObject(
             refLink, 37f * TS, topDownY(56), 64, 64,
-            Assets.woodSignImage?.let { com.badlogic.gdx.graphics.g2d.TextureRegion(it) }, true
+            TextureRegion(Assets.woodSignImage), true
         )
         woodSign3.setDialogueMessage("Învinge inamicul.")
         entities.add(woodSign3)
     }
+
+    // ==================== UPDATE (LOGICA JOCULUI) ====================
 
     override fun update(delta: Float) {
         if (collectionMessage != null &&
@@ -381,17 +379,37 @@ class GameState(
             return
         }
 
-        refLink.touchController.update() // Update touch
-        refLink.gameCamera.updateCamera() // Update camera
-
-        currentMap.update()
-        //fogOfWar?.update()
-        player.update()
+        // Input și logică player
+        refLink.touchController.update()
+        player.update() // Player ar trebui să primească delta, dar păstrăm așa dacă clasa Player nu cere
 
         if (player.health <= 0) {
             refLink.setState(GameOverState(refLink))
             return
         }
+
+        // ===================================================================================
+        // MODIFICARE CAMERĂ (ECHIVALENT JAVA checkBlankSpace)
+        // ===================================================================================
+        val gameCamera = refLink.gameCamera
+
+        // 1. Centrare pe jucător
+        gameCamera.position.x = player.x + player.width / 2
+        gameCamera.position.y = player.y + player.height / 2
+
+        // 2. Calcul limite
+        val mapWidthPixels = currentMap.width * TileConstants.TILE_SIZE
+        val mapHeightPixels = currentMap.height * TileConstants.TILE_SIZE
+        val camHalfW = gameCamera.viewportWidth / 2
+        val camHalfH = gameCamera.viewportHeight / 2
+
+        // 3. Clamping (Restricționare) - Camera nu iese din hartă
+        gameCamera.position.x = MathUtils.clamp(gameCamera.position.x, camHalfW, mapWidthPixels - camHalfW)
+        gameCamera.position.y = MathUtils.clamp(gameCamera.position.y, camHalfH, mapHeightPixels - camHalfH)
+
+        gameCamera.update()
+        currentMap.render(gameCamera) // Actualizează vizualizarea hărții doar dacă e necesar
+        // ===================================================================================
 
         updateLevelSpecificLogic(delta)
         updateEntities(delta)
@@ -408,7 +426,7 @@ class GameState(
     private fun updateLevel1Logic() {
         caveGuardianNPC?.let { npc ->
             if (player.bounds.overlaps(npc.bounds)) {
-                if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) {
+                if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) {
                     if (hasTalisman) {
                         caveEntranceUnlocked = true
                         removeTalismanFromInventory()
@@ -422,7 +440,7 @@ class GameState(
 
         caveEntrance?.let { entrance ->
             if (player.bounds.overlaps(entrance.bounds) &&
-                (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed)
+                (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed)
             ) {
                 if (caveEntranceUnlocked && hasDoorKeys[0]) {
                     passToLevel2()
@@ -438,11 +456,10 @@ class GameState(
     }
 
     private fun updateLevel2Logic() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) {
             checkAndOpenDoor()
         }
 
-        // Door positions are in Java coordinates - use getTileJava
         val doorPos = puzzleDoorPositions[5]
         if (!getTileJava(doorPos[0], doorPos[1]).isSolid) {
             val doorBounds = Rectangle(
@@ -460,7 +477,6 @@ class GameState(
     private fun updateLevel3Logic() {
         handleFinalDoorInteraction()
 
-        // Use Java coordinate helpers for all tile comparisons
         val playerTileX = getPlayerTileX()
         val playerTileY = getPlayerTileY()
 
@@ -468,7 +484,7 @@ class GameState(
         val tableTileY = 26
 
         if (abs(playerTileX - tableTileX) <= 1 && abs(playerTileY - tableTileY) <= 1) {
-            if ((Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) && woodSignMessage == null) {
+            if ((Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) && woodSignMessage == null) {
                 refLink.setState(WordPuzzleState(refLink))
             }
         }
@@ -581,9 +597,9 @@ class GameState(
         }
     }
 
-    // ==================== DOOR MANAGEMENT ====================
+    // ==================== USI SI INTERACTIUNI ====================
+
     private fun checkAndOpenDoor() {
-        // Use Java-style tile Y for comparisons with door positions
         val playerTileX = getPlayerTileX()
         val playerTileY = getPlayerTileY()
         val interactionRange = 2
@@ -612,7 +628,6 @@ class GameState(
         if (doorIndex in hasDoorKeys.indices && hasDoorKeys[doorIndex]) {
             val doorCoords = puzzleDoorPositions[doorIndex]
             if (doorCoords.size == 8) {
-                // Door coords are in Java/TMX format - use changeTileGidJava
                 changeTileGidJava(doorCoords[0], doorCoords[1], 0, 1)
                 changeTileGidJava(doorCoords[2], doorCoords[3], 0, 1)
                 changeTileGidJava(doorCoords[4], doorCoords[5], 0, 1)
@@ -627,7 +642,7 @@ class GameState(
 
     private fun handleFinalDoorInteraction() {
         val doorTileX = 39
-        val doorTileY = 6  // Java coordinate
+        val doorTileY = 6  // Coordonata Java
 
         if (!getTileJava(doorTileX, doorTileY).isSolid) {
             return
@@ -637,7 +652,7 @@ class GameState(
         val playerTileY = getPlayerTileY()
 
         if (abs(playerTileX - doorTileX) <= 2 && abs(playerTileY - doorTileY) <= 2) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) {
                 if (hasDoorKeys.size > 6 && hasDoorKeys[6]) {
                     openFinalDoor()
                 } else {
@@ -650,7 +665,6 @@ class GameState(
 
     private fun openFinalDoor() {
         val layerIndex = 2
-        // Door coords are in Java/TMX format
         changeTileGidJava(39, 6, 74, layerIndex)
         changeTileGidJava(40, 6, 75, layerIndex)
         changeTileGidJava(39, 7, 120, layerIndex)
@@ -663,7 +677,6 @@ class GameState(
         collectionMessageTime = System.currentTimeMillis()
     }
 
-    // ==================== LEVEL TRANSITIONS ====================
     private fun passToLevel2() {
         if (currentLevelIndex < levelPaths.size - 1) {
             refLink.setState(GameState(refLink, currentLevelIndex + 1))
@@ -678,7 +691,6 @@ class GameState(
         initLevelInternal(currentLevelIndex, false)
     }
 
-    // ==================== PUZZLE MANAGEMENT ====================
     fun isPuzzleSolved(puzzleId: Int): Boolean {
         return if (puzzleId in 1..TOTAL_PUZZLES_LEVEL2) {
             puzzlesSolved[puzzleId]
@@ -708,7 +720,6 @@ class GameState(
         }
     }
 
-    // ==================== INVENTORY MANAGEMENT ====================
     fun removeTalismanFromInventory() {
         hasTalisman = false
         entities.removeAll { it is Talisman }
@@ -721,7 +732,6 @@ class GameState(
         entities.add(entity)
     }
 
-    // ==================== OBJECTIVES & MESSAGES ====================
     private fun updateObjective() {
         currentObjective = when (currentLevelIndex) {
             1 -> "Rezolvă puzzle-urile."
@@ -735,14 +745,9 @@ class GameState(
     }
 
     fun isWoodSignMessageShowing(): Boolean = woodSignMessage != null
-
     fun isCaveEntranceUnlocked(): Boolean = caveEntranceUnlocked
+    fun setCaveEntranceUnlocked(unlocked: Boolean) { caveEntranceUnlocked = unlocked }
 
-    fun setCaveEntranceUnlocked(unlocked: Boolean) {
-        caveEntranceUnlocked = unlocked
-    }
-
-    // ==================== SAVE/LOAD ====================
     fun saveCurrentState() {
         val solvedPuzzlesString = puzzlesSolved
             .indices
@@ -761,16 +766,16 @@ class GameState(
         )
     }
 
-    // ==================== GETTERS ====================
     fun getMap() = currentMap
     fun getEntities() = entities
     fun getCurrentLevel(): Int = currentLevelIndex
 
     // ==================== RENDERING ====================
+
     override fun render(batch: SpriteBatch) {
         val camera = refLink.gameCamera
 
-        // 1. Hartă (fără batch.begin/end în jurul ei)
+        // 1. Hartă
         currentMap.render(camera)
 
         // 2. Entități
@@ -787,81 +792,73 @@ class GameState(
         batch.end()
 
         // 3. Ceață
-        fogOfWar?.render(batch, camera)
+        //fogOfWar?.render(batch, camera) // Decomentează dacă ai FogOfWar funcțional
 
-        // 4. Controale
-        refLink.touchController.draw()
-
-        // 5. UI (Interfață) - Aici apelăm funcția internă
+        // 4. UI
         renderUI(batch)
+
+        // 5. Controale
+        refLink.touchController.draw()
     }
 
-    // ==================== UI FUNCTIONS (ACUM ÎN INTERIORUL CLASEI) ====================
-
     private fun renderUI(batch: SpriteBatch) {
-        // Set up orthographic projection for UI
         batch.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
 
-        // Draw health bar
         drawHealthBar(batch)
 
-        // Start batch for text rendering
         batch.begin()
 
-        // Collection message
         collectionMessage?.let { msg ->
             font.color = Color.WHITE
-            val layout = com.badlogic.gdx.graphics.g2d.GlyphLayout(font, msg)
+            val layout = GlyphLayout(font, msg)
             val x = (Gdx.graphics.width - layout.width) / 2
             val y = Gdx.graphics.height / 2f
             font.draw(batch, msg, x, y)
         }
 
-        // Objective text
         if (isObjectiveDisplayed) {
             font.color = Color.YELLOW
             val objectiveText = "Obiectiv: $currentObjective"
-            val layout = com.badlogic.gdx.graphics.g2d.GlyphLayout(font, objectiveText)
+            val layout = GlyphLayout(font, objectiveText)
             val x = (Gdx.graphics.width - layout.width) / 2
             font.draw(batch, objectiveText, x, 30f)
         }
 
         batch.end()
 
-        // Wood sign message
         woodSignMessage?.let { msg ->
+            // Desenare fundal mesaj
             shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
             shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)
             shapeRenderer.rect(Gdx.graphics.width / 2f - 250f, Gdx.graphics.height / 2f - 75f, 500f, 150f)
             shapeRenderer.end()
 
+            // Desenare text mesaj
             batch.begin()
             font.color = Color.WHITE
-            val layout = com.badlogic.gdx.graphics.g2d.GlyphLayout(font, msg)
+            val layout = GlyphLayout(font, msg)
             val x = (Gdx.graphics.width - layout.width) / 2
             val y = Gdx.graphics.height / 2f
             font.draw(batch, msg, x, y)
 
             val instruction = "Apasă 'E' pentru a închide."
-            val instrLayout = com.badlogic.gdx.graphics.g2d.GlyphLayout(font, instruction)
+            val instrLayout = GlyphLayout(font, instruction)
             val instrX = (Gdx.graphics.width - instrLayout.width) / 2
             font.draw(batch, instruction, instrX, y - 50f)
             batch.end()
         }
 
-        // Draw minimap
         drawMiniMap(batch)
     }
 
     private fun drawHealthBar(batch: SpriteBatch) {
+        if (batch.isDrawing) batch.end()
+
         val barWidth = 150f
         val barHeight = 20f
         val x = 10f
         val y = Gdx.graphics.height - 30f
-
-        // Oprirea batch-ului curent (dacă era pornit) pentru a folosi ShapeRenderer
-        if (batch.isDrawing) batch.end()
 
         shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
 
@@ -881,6 +878,8 @@ class GameState(
     }
 
     private fun drawMiniMap(batch: SpriteBatch) {
+        if (batch.isDrawing) batch.end()
+
         val miniMapHeight = 150f
         val TS = TileConstants.TILE_SIZE
         val mapPixelWidth = currentMap.width * TS
@@ -891,17 +890,13 @@ class GameState(
         val miniMapX = Gdx.graphics.width - miniMapWidth - padding
         val miniMapY = Gdx.graphics.height - miniMapHeight - padding
 
-        if (batch.isDrawing) batch.end()
-
         shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
 
-        // Background
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
         shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)
         shapeRenderer.rect(miniMapX, miniMapY, miniMapWidth, miniMapHeight)
         shapeRenderer.end()
 
-        // Border
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
         shapeRenderer.color = Color.WHITE
         shapeRenderer.rect(miniMapX, miniMapY, miniMapWidth, miniMapHeight)
@@ -917,9 +912,9 @@ class GameState(
                 val tile = currentMap.getTile(xTile, yTile)
                 if (tile.isSolid) {
                     when (currentLevelIndex) {
-                        0 -> shapeRenderer.color = Color(34f / 255f, 139f / 255f, 34f / 255f, 1f) // Green
-                        1 -> shapeRenderer.color = Color(100f / 255f, 100f / 255f, 100f / 255f, 1f) // Gray
-                        else -> shapeRenderer.color = Color(87f / 255f, 51f / 255f, 35f / 255f, 1f) // Brown
+                        0 -> shapeRenderer.color = Color(34f / 255f, 139f / 255f, 34f / 255f, 1f)
+                        1 -> shapeRenderer.color = Color(100f / 255f, 100f / 255f, 100f / 255f, 1f)
+                        else -> shapeRenderer.color = Color(87f / 255f, 51f / 255f, 35f / 255f, 1f)
                     }
                     shapeRenderer.rect(
                         miniMapX + xTile * TS * mapScaleX,
@@ -931,7 +926,6 @@ class GameState(
             }
         }
 
-        // Collectibles
         shapeRenderer.color = Color.YELLOW
         for (entity in entities) {
             if ((entity is Key || entity is Talisman)) {
@@ -941,7 +935,6 @@ class GameState(
             }
         }
 
-        // Player
         shapeRenderer.color = Color.CYAN
         val playerMiniMapX = miniMapX + player.x * mapScaleX
         val playerMiniMapY = miniMapY + player.y * mapScaleY

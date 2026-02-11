@@ -1,5 +1,6 @@
 package com.lostexpedition.game.input
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Vector2
@@ -126,6 +127,10 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
     }
 
     fun draw() {
+        // ✅ FIX: Setăm proiecția pe dimensiunea ecranului (UI Mode)
+        // Asta asigură că joystick-ul stă lipit de ecran, indiferent unde merge player-ul pe hartă
+        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
 
         // Desenare Joystick
