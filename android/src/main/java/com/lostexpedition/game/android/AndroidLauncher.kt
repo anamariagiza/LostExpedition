@@ -16,24 +16,21 @@ class AndroidLauncher : AndroidApplication() {
             useAccelerometer = false
             useCompass = false
             useImmersiveMode = true
-           // hideStatusBar = true // ❌ Această linie a fost ștearsă (nu mai există în LibGDX nou) [cite: 1]
         }
 
         val game = LostExpeditionGame()
         initialize(game, config)
 
-        // ✅ Setup InputProcessor for TouchController
+        // Setup InputProcessor for TouchController
         Gdx.app.postRunnable {
             val inputMultiplexer = InputMultiplexer()
 
             val touchProcessor = object : InputProcessor {
                 override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                    // Folosim try-catch sau verificări pentru siguranță
                     try {
                         val controller = game.getRefLinks().touchController
-                        // ⚠️ LibGDX Y coordinate is BOTTOM-UP, flip it
-                        val flippedY = Gdx.graphics.height - screenY
-                        return controller.touchDown(screenX.toFloat(), flippedY.toFloat(), pointer)
+                        // ✅ FIX: Trimitem direct Int și adăugăm parametrul 'button'
+                        return controller.touchDown(screenX, screenY, pointer, button)
                     } catch (e: Exception) {
                         return false
                     }
@@ -42,8 +39,8 @@ class AndroidLauncher : AndroidApplication() {
                 override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
                     try {
                         val controller = game.getRefLinks().touchController
-                        val flippedY = Gdx.graphics.height - screenY
-                        return controller.touchUp(screenX.toFloat(), flippedY.toFloat(), pointer)
+                        // ✅ FIX: Trimitem direct Int și adăugăm parametrul 'button'
+                        return controller.touchUp(screenX, screenY, pointer, button)
                     } catch (e: Exception) {
                         return false
                     }
@@ -52,16 +49,20 @@ class AndroidLauncher : AndroidApplication() {
                 override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
                     try {
                         val controller = game.getRefLinks().touchController
-                        val flippedY = Gdx.graphics.height - screenY
-                        return controller.touchDragged(screenX.toFloat(), flippedY.toFloat(), pointer)
+                        // ✅ FIX: Trimitem Int (TouchController se ocupă intern de flip Y)
+                        return controller.touchDragged(screenX, screenY, pointer)
                     } catch (e: Exception) {
                         return false
                     }
                 }
 
-                // ✅ FIX: Această metodă lipsea și cauza eroarea "Object is not abstract"
                 override fun touchCancelled(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                    return false
+                    try {
+                        val controller = game.getRefLinks().touchController
+                        return controller.touchCancelled(screenX, screenY, pointer, button)
+                    } catch (e: Exception) {
+                        return false
+                    }
                 }
 
                 override fun mouseMoved(screenX: Int, screenY: Int): Boolean = false

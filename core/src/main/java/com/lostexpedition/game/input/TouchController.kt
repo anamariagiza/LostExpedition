@@ -1,19 +1,22 @@
 package com.lostexpedition.game.input
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.InputProcessor
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Vector2
 
-class TouchController(screenWidth: Int, screenHeight: Int) {
+/**
+ * TouchController - Gestionează input-ul tactil pentru Android.
+ * Implementează InputProcessor pentru a intercepta evenimentele de touch de la sistem.
+ */
+class TouchController(private var screenWidth: Int, private var screenHeight: Int) : InputProcessor {
 
     // Joystick stânga-jos (fix)
     private val joystick = VirtualJoystick(200f, 200f, 120f, 60f)
 
-    // Butoane dreapta-jos (calculate dinamic în funcție de ecran)
-    // Attack (Roșu) - mai mare
+    // Butoane dreapta-jos (Attack și Interact)
     private val attackButton = VirtualButton(screenWidth - 250f, 200f, 90f)
-    // Interact/Jump (Albastru) - mai mic, lângă attack
     private val interactButton = VirtualButton(screenWidth - 450f, 150f, 70f)
 
     private val shapeRenderer = ShapeRenderer()
@@ -29,23 +32,19 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
     var isInteractPressed = false
         private set
 
-    // "Just pressed" flags - true only for one frame after press
     var isAttackJustPressed = false
         private set
     var isInteractJustPressed = false
         private set
 
-    // Previous frame state for edge detection
     private var wasAttackPressed = false
     private var wasInteractPressed = false
 
-    // Helpers pentru TestScreen
-    fun getMoveDirection(): Vector2 {
-        return Vector2(joystickDeltaX, joystickDeltaY)
-    }
-
-    // Mapăm Jump pe butonul de Interact pentru acest exemplu (sau poți adăuga un buton separat)
-    fun isJumpPressed(): Boolean = isInteractPressed
+    // Helpers pentru direcțiile de mișcare folosite în clasa Player
+    fun isUpPressed(): Boolean = joystickDeltaY > 0.5f
+    fun isDownPressed(): Boolean = joystickDeltaY < -0.5f
+    fun isLeftPressed(): Boolean = joystickDeltaX < -0.5f
+    fun isRightPressed(): Boolean = joystickDeltaX > 0.5f
 
     fun update() {
         if (joystick.isActive) {
@@ -62,7 +61,7 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
         isAttackPressed = attackButton.isPressed
         isInteractPressed = interactButton.isPressed
 
-        // Edge detection: "just pressed" is true only on the frame the button transitions from not-pressed to pressed
+        // Detecție pentru apăsare singulară (trigger)
         isAttackJustPressed = isAttackPressed && !wasAttackPressed
         isInteractJustPressed = isInteractPressed && !wasInteractPressed
 
@@ -70,67 +69,52 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
         wasInteractPressed = isInteractPressed
     }
 
-    fun touchDown(screenX: Float, screenY: Float, pointer: Int): Boolean {
+    // --- Implementare obligatorie InputProcessor ---
+
+    override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
+        // Conversie coordonate: Android are 0 la marginea de sus, ShapeRenderer are 0 jos
+        val actualY = Gdx.graphics.height - screenY.toFloat()
+        val actualX = screenX.toFloat()
+
         var handled = false
-
-        // Verificăm joystick
-        if (joystick.handleTouchDown(screenX, screenY, pointer)) {
-            isJoystickActive = true
-            update()
-            handled = true
-        }
-
-        // Verificăm butoane
-        if (attackButton.handleTouchDown(screenX, screenY, pointer)) {
-            isAttackPressed = true
-            handled = true
-        }
-
-        if (interactButton.handleTouchDown(screenX, screenY, pointer)) {
-            isInteractPressed = true
-            handled = true
-        }
-
+        if (joystick.handleTouchDown(actualX, actualY, pointer)) handled = true
+        if (attackButton.handleTouchDown(actualX, actualY, pointer)) handled = true
+        if (interactButton.handleTouchDown(actualX, actualY, pointer)) handled = true
         return handled
     }
 
-    fun touchUp(screenX: Float, screenY: Float, pointer: Int): Boolean {
+    override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
+        val actualY = Gdx.graphics.height - screenY.toFloat()
+        val actualX = screenX.toFloat()
+
         var handled = false
-
-        if (joystick.handleTouchUp(pointer)) {
-            isJoystickActive = false
-            joystickDeltaX = 0f
-            joystickDeltaY = 0f
-            update()
-            handled = true
-        }
-
-        if (attackButton.handleTouchUp(screenX, screenY, pointer)) {
-            isAttackPressed = false
-            handled = true
-        }
-
-        if (interactButton.handleTouchUp(screenX, screenY, pointer)) {
-            isInteractPressed = false
-            handled = true
-        }
-
+        if (joystick.handleTouchUp(pointer)) handled = true
+        if (attackButton.handleTouchUp(actualX, actualY, pointer)) handled = true
+        if (interactButton.handleTouchUp(actualX, actualY, pointer)) handled = true
         return handled
     }
 
-    fun touchDragged(screenX: Float, screenY: Float, pointer: Int): Boolean {
-        if (joystick.handleTouchDragged(screenX, screenY, pointer)) {
-            update()
-            return true
-        }
-        return false
+    override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
+        val actualY = Gdx.graphics.height - screenY.toFloat()
+        val actualX = screenX.toFloat()
+        return joystick.handleTouchDragged(actualX, actualY, pointer)
     }
+
+    // ✅ REZOLVARE EROARE: Metoda nouă adăugată în versiunile recente de libGDX
+    override fun touchCancelled(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
+        return touchUp(screenX, screenY, pointer, button)
+    }
+
+    // Metode de tastatură nefolosite pe Android
+    override fun keyDown(keycode: Int): Boolean = false
+    override fun keyUp(keycode: Int): Boolean = false
+    override fun keyTyped(character: Char): Boolean = false
+    override fun mouseMoved(screenX: Int, screenY: Int): Boolean = false
+    override fun scrolled(amountX: Float, amountY: Float): Boolean = false
 
     fun draw() {
-        // ✅ FIX: Setăm proiecția pe dimensiunea ecranului (UI Mode)
-        // Asta asigură că joystick-ul stă lipit de ecran, indiferent unde merge player-ul pe hartă
+        // Setăm proiecția pentru UI (ecran static)
         shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
-
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
 
         // Desenare Joystick
@@ -161,17 +145,15 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
         private var touchY = y
         private var activePointer = -1
 
-        fun getDirection(): Direction {
-            if (!isActive) return Direction(0f, 0f)
+        fun getDirection(): Vector2 {
+            if (!isActive) return Vector2(0f, 0f)
             val dx = touchX - x
             val dy = touchY - y
-            // Normalizăm vectorul
             val distance = kotlin.math.sqrt(dx * dx + dy * dy)
             return if (distance > 0) {
-                // Putem ajusta sensibilitatea aici
-                Direction(dx / outerRadius, dy / outerRadius)
+                Vector2(dx / outerRadius, dy / outerRadius)
             } else {
-                Direction(0f, 0f)
+                Vector2(0f, 0f)
             }
         }
 
@@ -180,17 +162,10 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
             val dy = screenY - y
             val distance = kotlin.math.sqrt(dx * dx + dy * dy)
 
-            if (distance <= outerRadius * 1.5f) { // Zonă de atingere puțin mai mare
+            if (distance <= outerRadius * 1.5f) {
                 isActive = true
                 activePointer = pointer
-                touchX = screenX
-                touchY = screenY
-                // Clamp stick inside circle
-                if (distance > outerRadius) {
-                    val angle = kotlin.math.atan2(dy, dx)
-                    touchX = x + kotlin.math.cos(angle) * outerRadius
-                    touchY = y + kotlin.math.sin(angle) * outerRadius
-                }
+                updatePosition(screenX, screenY)
                 return true
             }
             return false
@@ -209,21 +184,25 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
 
         fun handleTouchDragged(screenX: Float, screenY: Float, pointer: Int): Boolean {
             if (pointer == activePointer && isActive) {
-                val dx = screenX - x
-                val dy = screenY - y
-                val distance = kotlin.math.sqrt(dx * dx + dy * dy)
-
-                if (distance <= outerRadius) {
-                    touchX = screenX
-                    touchY = screenY
-                } else {
-                    val angle = kotlin.math.atan2(dy, dx)
-                    touchX = x + kotlin.math.cos(angle) * outerRadius
-                    touchY = y + kotlin.math.sin(angle) * outerRadius
-                }
+                updatePosition(screenX, screenY)
                 return true
             }
             return false
+        }
+
+        private fun updatePosition(screenX: Float, screenY: Float) {
+            val dx = screenX - x
+            val dy = screenY - y
+            val distance = kotlin.math.sqrt(dx * dx + dy * dy)
+
+            if (distance <= outerRadius) {
+                touchX = screenX
+                touchY = screenY
+            } else {
+                val angle = kotlin.math.atan2(dy, dx)
+                touchX = x + kotlin.math.cos(angle) * outerRadius
+                touchY = y + kotlin.math.sin(angle) * outerRadius
+            }
         }
 
         fun draw(renderer: ShapeRenderer) {
@@ -232,15 +211,9 @@ class TouchController(screenWidth: Int, screenHeight: Int) {
             renderer.color = Color(1f, 1f, 1f, 0.6f)
             renderer.circle(touchX, touchY, innerRadius)
         }
-
-        data class Direction(val x: Float, val y: Float)
     }
 
-    private class VirtualButton(
-        private val x: Float,
-        private val y: Float,
-        private val radius: Float
-    ) {
+    private class VirtualButton(private val x: Float, private val y: Float, private val radius: Float) {
         var isPressed = false
             private set
         private var activePointer = -1

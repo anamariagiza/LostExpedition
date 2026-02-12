@@ -2,7 +2,6 @@ package com.lostexpedition.game
 
 import com.badlogic.gdx.ApplicationAdapter
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.lostexpedition.game.graphics.Assets
@@ -11,32 +10,25 @@ import com.lostexpedition.game.states.State
 import com.lostexpedition.game.utils.DebugLogger
 import com.lostexpedition.game.utils.RefLinks
 
-/**
- * LostExpeditionGame - Main game class
- *
- * Desktop viewport: 1500x843
- * Supports fullscreen toggle with F11 key
- *
- * @author LostExpedition Team
- */
 class LostExpeditionGame : ApplicationAdapter() {
 
     private lateinit var batch: SpriteBatch
     private lateinit var refLinks: RefLinks
-    private var isFullscreen = false
 
     override fun create() {
-        DebugLogger.log("LostExpeditionGame", "create() - DESKTOP MATCHED MODE")
+        DebugLogger.log("LostExpeditionGame", "create() - ANDROID MODE")
         batch = SpriteBatch()
         refLinks = RefLinks(this)
 
+        // ✅ SETARE ANDROID: Dezactivăm tastatura și activăm TouchController
+        // refLinks.touchController este deja definit în RefLinks
+        Gdx.input.inputProcessor = refLinks.touchController
+
         refLinks.setState(LoadingScreenState(refLinks))
-        DebugLogger.log("LostExpeditionGame", "Initialized with desktop viewport: 1500px width")
     }
 
     override fun render() {
-        // Handle fullscreen toggle (F11 key)
-        handleFullscreenToggle()
+        // ✅ ELIMINAT: handleFullscreenToggle() - nu există F11 pe mobil
 
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
@@ -52,36 +44,17 @@ class LostExpeditionGame : ApplicationAdapter() {
         State.currentState?.render(batch)
     }
 
-    /**
-     * Handles fullscreen toggle with F11 key (like Java version)
-     */
-    private fun handleFullscreenToggle() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.F11)) {
-            isFullscreen = !isFullscreen
-            if (isFullscreen) {
-                Gdx.graphics.setFullscreenMode(Gdx.graphics.displayMode)
-                DebugLogger.log("LostExpeditionGame", "Switched to fullscreen mode")
-            } else {
-                Gdx.graphics.setWindowedMode(1500, 843)
-                DebugLogger.log("LostExpeditionGame", "Switched to windowed mode (1500x843)")
-            }
-        }
-    }
-
     override fun resize(width: Int, height: Int) {
-        // ✅ DESKTOP EXACT: 1500px viewport width (ca Java AWT)
+        // ✅ OPTIMIZARE MOBIL: Calculăm viewport-ul bazat pe ecranul telefonului
         val aspectRatio = width.toFloat() / height.toFloat()
-        val gameWidth = 1500f  // ← EXACT ca desktop
-        val gameHeight = gameWidth / aspectRatio  // ~675f pentru 2400x1080
+        val gameWidth = 1500f
+        val gameHeight = gameWidth / aspectRatio
 
         refLinks.gameCamera.viewportWidth = gameWidth
         refLinks.gameCamera.viewportHeight = gameHeight
         refLinks.gameCamera.update()
 
-        // Update batch projection pentru UI rendering
         batch.projectionMatrix.setToOrtho2D(0f, 0f, width.toFloat(), height.toFloat())
-
-        println("✓ Resize: ${width}x${height} → viewport ${gameWidth}x${gameHeight}")
     }
 
     override fun dispose() {

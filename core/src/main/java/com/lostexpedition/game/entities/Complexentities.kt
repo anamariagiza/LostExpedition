@@ -1,7 +1,6 @@
 package com.lostexpedition.game.entities
 
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
@@ -20,7 +19,6 @@ class NPC(
 
     override fun update() {
         stateTime += Gdx.graphics.deltaTime
-        // ✅ FIX: bounds.setPosition(x, y) a fost șters deoarece bounds se calculează automat
     }
 
     override fun render(batch: SpriteBatch) {
@@ -61,7 +59,6 @@ class Trap(
             activationTime += Gdx.graphics.deltaTime
             blinkTime += Gdx.graphics.deltaTime
         }
-        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -69,7 +66,7 @@ class Trap(
 
         image?.let {
             if (active) {
-                val alpha = if (kotlin.math.sin(blinkTime * blinkSpeed).toFloat() > 0) 1f else 0.3f
+                val alpha = if (kotlin.math.sin(blinkTime.toDouble() * blinkSpeed).toFloat() > 0) 1f else 0.3f
                 val oldColor = batch.color.cpy()
                 batch.setColor(1f, 1f, 1f, alpha)
                 batch.draw(it, x, y, width.toFloat(), height.toFloat())
@@ -91,7 +88,6 @@ class TrapTrigger(
 ) : Entity(refLink, x, y, width, height) {
 
     override fun update() {
-        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -107,32 +103,24 @@ class DecorativeObject(
     width: Int,
     height: Int,
     private val image: TextureRegion?,
-    private val hasInteraction: Boolean = false
+    // ✅ REPARAT: Adăugat isInteractable pentru acces din GameState
+    val isInteractable: Boolean = false
 ) : Entity(refLink, x, y, width, height) {
 
     private var dialogueMessage: String? = null
 
+    // ✅ REPARAT: Metode pentru gestionarea mesajelor
     fun setDialogueMessage(message: String) {
         dialogueMessage = message
     }
 
+    fun getDialogueMessage(): String? {
+        return dialogueMessage
+    }
+
     override fun update() {
-        if (hasInteraction) {
-            val player = refLink.player
-            if (player != null && bounds.overlaps(player.bounds)) {
-                if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-                    val gameState = refLink.gameState
-                    if (gameState != null && dialogueMessage != null) {
-                        if (gameState.isWoodSignMessageShowing()) {
-                            gameState.showWoodSignMessage(null)
-                        } else {
-                            gameState.showWoodSignMessage(dialogueMessage)
-                        }
-                    }
-                }
-            }
-        }
-        // ✅ FIX: bounds.setPosition(x, y) șters
+        // Logica de interacțiune a fost mutată în GameState.update()
+        // pentru a centraliza controlul TouchController și prioritățile de UI.
     }
 
     override fun render(batch: SpriteBatch) {

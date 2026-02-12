@@ -96,18 +96,15 @@ class GameState(
         // Configurare Input Processor pentru TouchController
         Gdx.input.inputProcessor = object : com.badlogic.gdx.InputAdapter() {
             override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                val gameY = Gdx.graphics.height - screenY.toFloat()
-                return refLink.touchController.touchDown(screenX.toFloat(), gameY, pointer)
+                return refLink.touchController.touchDown(screenX, screenY, pointer, button)
             }
 
             override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                val gameY = Gdx.graphics.height - screenY.toFloat()
-                return refLink.touchController.touchUp(screenX.toFloat(), gameY, pointer)
+                return refLink.touchController.touchUp(screenX, screenY, pointer, button)
             }
 
             override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
-                val gameY = Gdx.graphics.height - screenY.toFloat()
-                return refLink.touchController.touchDragged(screenX.toFloat(), gameY, pointer)
+                return refLink.touchController.touchDragged(screenX, screenY, pointer)
             }
         }
 
@@ -388,46 +385,67 @@ class GameState(
     // ==================== UPDATE (LOGICA JOCULUI) ====================
 
     override fun update(delta: Float) {
+        // Gestionare mesaje temporare (colectare obiecte)
         if (collectionMessage != null &&
             System.currentTimeMillis() - collectionMessageTime > MESSAGE_DURATION_MS
         ) {
             collectionMessage = null
         }
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.P)) {
-            refLink.setState(PauseState(refLink))
-            return
+        // Actualizare stare TouchController (calcul de delta joystick și flag-uri de apăsare)
+        refLink.touchController.update()
+
+        // Actualizare logică jucător (mișcare, animații)
+        player.update()
+
+        // ✅ LOGICĂ INTERACȚIUNE ȘI OBIECTIV (Buton Albastru)
+        if (refLink.touchController.isInteractJustPressed) {
+            var interactedWithSign = false
+
+            // Verificăm dacă suntem lângă un semn de lemn pentru a-l citi
+            for (entity in entities) {
+                if (entity is DecorativeObject && entity.isInteractable) {
+                    // Verificăm proximitatea (ex: 100 pixeli distanță)
+                    val dist = com.badlogic.gdx.math.Vector2.dst(player.x, player.y, entity.x, entity.y)
+                    if (dist < 100f) {
+                        interactedWithSign = true
+                        val msg = entity.getDialogueMessage() // ✅ Acum referința este validă
+                        if (woodSignMessage == null) {
+                            woodSignMessage = msg
+                        } else {
+                            woodSignMessage = null
+                        }
+                        break
+                    }
+                }
+            }
+
+            // Dacă nu suntem lângă un semn și nu avem un mesaj deschis, afișăm/ascundem obiectivul
+            if (!interactedWithSign && woodSignMessage == null) {
+                isObjectiveDisplayed = !isObjectiveDisplayed
+            } else if (woodSignMessage != null && !interactedWithSign) {
+                // Închidem mesajul de pe semn dacă apăsăm butonul în timp ce mesajul e afișat
+                woodSignMessage = null
+            }
         }
 
-        // Input și logică player
-        refLink.touchController.update()
-        player.update() // Player ar trebui să primească delta, dar păstrăm așa dacă clasa Player nu cere
-
+        // Verificare stare de eșec
         if (player.health <= 0) {
             refLink.setState(GameOverState(refLink))
             return
         }
 
-        // ===================================================================================
-        // LOGICA DE CAMERĂ SIMPLIFICATĂ (Zoom fix 0.9 + Clamping)
-        // ===================================================================================
+        // ✅ LOGICĂ DE CAMERĂ (Zoom fix 0.9 + Clamping pe margini)
         val gameCamera = refLink.gameCamera
-
-        // 1. Centrare pe jucător (centrul sprite-ului)
         gameCamera.position.x = player.x + player.width / 2
         gameCamera.position.y = player.y + player.height / 2
 
-        // 2. Calcul limite hărții (în pixeli)
         val mapWidthPixels = currentMap.width * TileConstants.TILE_SIZE.toFloat()
         val mapHeightPixels = currentMap.height * TileConstants.TILE_SIZE.toFloat()
 
-        // 3. Calcul viewport efectiv cu zoom-ul de 0.9
-        // La zoom 0.9, camera vede mai mult din hartă
         val effectiveViewportWidth = gameCamera.viewportWidth * currentZoom
         val effectiveViewportHeight = gameCamera.viewportHeight * currentZoom
 
-        // 4. Clamping (Restricționare) - Camera nu depășește marginile hărții
-        // Aceasta este transpunerea logică a checkBlankSpace din Java
         gameCamera.position.x = com.badlogic.gdx.math.MathUtils.clamp(
             gameCamera.position.x,
             effectiveViewportWidth / 2f,
@@ -438,10 +456,9 @@ class GameState(
             effectiveViewportHeight / 2f,
             mapHeightPixels - effectiveViewportHeight / 2f
         )
-
         gameCamera.update()
-        // ===================================================================================
 
+        // Actualizare logică specifică nivelului și entităților
         updateLevelSpecificLogic(delta)
         updateEntities(delta)
     }
