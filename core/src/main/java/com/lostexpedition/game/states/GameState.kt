@@ -3,7 +3,7 @@ package com.lostexpedition.game.states
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
-import com.badlogic.gdx.graphics.GL20 // <--- IMPORT CRITIC ADAUGAT
+import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
@@ -92,6 +92,9 @@ class GameState(
     private lateinit var font: BitmapFont
     private val shapeRenderer = ShapeRenderer()
     private val currentZoom = 0.9f
+
+    // ✅ NOU: Bounds pentru butonul de pauză
+    private val pauseButtonBounds = Rectangle()
 
     init {
         refLink.gameState = this
@@ -259,9 +262,18 @@ class GameState(
         entities.add(Animal(refLink, 89f * TS, topDownY(29), 88f * TS, 91f * TS, Animal.AnimalType.MONKEY))
         entities.add(Animal(refLink, 84f * TS, topDownY(57), 82f * TS, 85f * TS, Animal.AnimalType.BAT))
 
-        entities.add(Trap(refLink, 66f * TS, topDownY(31), TextureRegion(Assets.spikeTrapImage)))
-        entities.add(Trap(refLink, 67f * TS, topDownY(38), TextureRegion(Assets.spikeTrapImage)))
-        entities.add(Trap(refLink, 66f * TS, topDownY(45), TextureRegion(Assets.spikeTrapImage)))
+        // Adăugăm capcanele și le activăm
+        val trap1 = Trap(refLink, 66f * TS, topDownY(31), TextureRegion(Assets.spikeTrapImage))
+        trap1.setActive(true)
+        entities.add(trap1)
+
+        val trap2 = Trap(refLink, 67f * TS, topDownY(38), TextureRegion(Assets.spikeTrapImage))
+        trap2.setActive(true)
+        entities.add(trap2)
+
+        val trap3 = Trap(refLink, 66f * TS, topDownY(45), TextureRegion(Assets.spikeTrapImage))
+        trap3.setActive(true)
+        entities.add(trap3)
 
         caveGuardianNPC = NPC(refLink, 93f * TS, topDownY(92))
         entities.add(caveGuardianNPC!!)
@@ -397,6 +409,19 @@ class GameState(
             System.currentTimeMillis() - collectionMessageTime > MESSAGE_DURATION_MS
         ) {
             collectionMessage = null
+        }
+
+        // ✅ CHECK PAUSE BUTTON INPUT
+        if (Gdx.input.justTouched()) {
+            val touchX = Gdx.input.x.toFloat()
+            val touchY = Gdx.graphics.height - Gdx.input.y.toFloat() // Inversăm Y pentru UI
+
+            if (pauseButtonBounds.contains(touchX, touchY)) {
+                // Salvăm jocul înainte de pauză pentru siguranță
+                saveCurrentState()
+                refLink.setState(PauseState(refLink))
+                return // Oprim update-ul curent
+            }
         }
 
         refLink.touchController.update()
@@ -602,7 +627,7 @@ class GameState(
                 }
 
                 is Trap -> {
-                    if (currentLevelIndex == 0 || entity.isActive()) {
+                    if (entity.isActive()) {
                         if (player.bounds.overlaps(entity.bounds)) {
                             if (System.currentTimeMillis() - lastTrapDamageTime >= TRAP_DAMAGE_COOLDOWN_MS) {
                                 player.takeDamage(30)
@@ -684,7 +709,7 @@ class GameState(
 
     private fun handleFinalDoorInteraction() {
         val doorTileX = 39
-        val doorTileY = 6  // Coordonata Java
+        val doorTileY = 6
 
         if (!getTileJava(doorTileX, doorTileY).isSolid) {
             return
@@ -812,8 +837,6 @@ class GameState(
     fun getEntities() = entities
     fun getCurrentLevel(): Int = currentLevelIndex
 
-    // ==================== RENDERING (UI Optimizat HD) ====================
-
     override fun render(batch: SpriteBatch) {
         val camera = refLink.gameCamera
 
@@ -831,10 +854,8 @@ class GameState(
         }
         batch.end()
 
-        // 4. UI
         renderUI(batch)
 
-        // 5. Controale
         refLink.touchController.draw()
     }
 
@@ -847,7 +868,6 @@ class GameState(
 
         font.data.setScale(1f)
 
-        // --- 1. TEXT OBIECTIV (Sus) ---
         if (isObjectiveDisplayed) {
             font.color = Color.YELLOW
 
@@ -858,7 +878,6 @@ class GameState(
             font.draw(batch, objectiveText, x, 80f)
         }
 
-        // --- 2. MESAJE TEMPORARE ---
         collectionMessage?.let { msg ->
             val layout = GlyphLayout(font, msg)
             val x = (Gdx.graphics.width - layout.width) / 2
@@ -868,10 +887,8 @@ class GameState(
             font.draw(batch, msg, x, y)
         }
 
-        // --- 3. MESAJ PANOU LEMN ---
         woodSignMessage?.let { msg ->
             batch.end()
-            // --- MODIFICAT AICI: Folosim GL20.GL_BLEND corect ---
             Gdx.gl.glEnable(GL20.GL_BLEND)
             shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
@@ -890,6 +907,7 @@ class GameState(
 
         batch.end()
         drawMiniMap(batch)
+        drawPauseButton(batch) // ✅ Apelăm desenarea butonului
     }
 
     private fun drawHealthBar(batch: SpriteBatch) {
@@ -981,5 +999,56 @@ class GameState(
         shapeRenderer.circle(playerMiniMapX, playerMiniMapY, 5f)
 
         shapeRenderer.end()
+    }
+
+    // ✅ NOU: Funcție pentru desenarea butonului de pauză sub minimapă
+    private fun drawPauseButton(batch: SpriteBatch) {
+        // Trebuie să ne asigurăm că SpriteBatch este oprit pentru ShapeRenderer
+        if (batch.isDrawing) batch.end()
+
+        val miniMapHeight = 150f
+        val TS = TileConstants.TILE_SIZE
+        val mapPixelWidth = currentMap.width * TS
+        val mapPixelHeight = currentMap.height * TS
+        val miniMapWidth = (mapPixelWidth / mapPixelHeight) * miniMapHeight
+        val padding = 10f
+
+        val miniMapX = Gdx.graphics.width - miniMapWidth - padding
+        val miniMapY = Gdx.graphics.height - miniMapHeight - padding
+
+        // Calcul poziție și dimensiune buton
+        val buttonWidth = miniMapWidth // Lățime egală cu minimapa
+        val buttonHeight = 40f
+        val buttonX = miniMapX
+        val buttonY = miniMapY - buttonHeight - padding // Sub minimapă
+
+        // Actualizare bounds pentru detectarea click-ului
+        pauseButtonBounds.set(buttonX, buttonY, buttonWidth, buttonHeight)
+
+        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+
+        // 1. Fundal buton
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+        shapeRenderer.color = Color.DARK_GRAY
+        shapeRenderer.rect(buttonX, buttonY, buttonWidth, buttonHeight)
+        shapeRenderer.end()
+
+        // 2. Contur buton
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+        shapeRenderer.color = Color.WHITE
+        shapeRenderer.rect(buttonX, buttonY, buttonWidth, buttonHeight)
+        shapeRenderer.end()
+
+        // 3. Text "PAUZĂ"
+        batch.begin()
+        font.data.setScale(0.8f) // Font mai mic pentru buton
+        font.color = Color.WHITE
+        val text = "PAUZĂ"
+        val layout = GlyphLayout(font, text)
+        val textX = buttonX + (buttonWidth - layout.width) / 2
+        val textY = buttonY + (buttonHeight + layout.height) / 2
+        font.draw(batch, text, textX, textY)
+        font.data.setScale(1f) // Resetare scală
+        batch.end()
     }
 }

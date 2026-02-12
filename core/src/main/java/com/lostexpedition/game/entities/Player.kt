@@ -7,43 +7,14 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Rectangle
 import com.lostexpedition.game.graphics.Assets
-import com.lostexpedition.game.tiles.Tile
 import com.lostexpedition.game.tiles.TileConstants
 import com.lostexpedition.game.utils.RefLinks
 import kotlin.math.abs
 
-/**
- * Direction enum - Represents the four cardinal directions (like Java version)
- */
 enum class Direction {
     UP, DOWN, LEFT, RIGHT;
-
-    companion object {
-        /**
-         * Gets the opposite direction
-         */
-        fun opposite(dir: Direction): Direction {
-            return when (dir) {
-                UP -> DOWN
-                DOWN -> UP
-                LEFT -> RIGHT
-                RIGHT -> LEFT
-            }
-        }
-    }
 }
 
-/**
- * Player - The main playable character
- *
- * Handles player input, movement, combat, and animations.
- * Supports both keyboard and touch controls.
- *
- * @param refLink Reference to game utilities
- * @param startX Starting X position
- * @param startY Starting Y position
- * @author LostExpedition Team
- */
 class Player(
     refLink: RefLinks,
     startX: Float,
@@ -62,9 +33,10 @@ class Player(
 
     private var stateTime = 0f
     private lateinit var currentAnimation: Animation<TextureRegion>
+    // ✅ NEW: Ținem minte ultima animație pentru a reseta timer-ul
+    private var previousAnimation: Animation<TextureRegion>? = null
     private var currentFrame: TextureRegion
 
-    /** Current facing direction (using Direction enum) */
     var direction: Direction = Direction.DOWN
         private set
 
@@ -92,9 +64,6 @@ class Player(
     }
 
     override fun update() {
-        // TouchController is updated by GameState - do NOT call update() here
-        // as it would reset isInteractJustPressed before interaction logic runs
-
         handleInput()
         move()
         updateAnimations()
@@ -123,7 +92,7 @@ class Player(
 
         val touchController = refLink.touchController
 
-        // Android touch controls (update() is already called by GameState, don't call again)
+        // Touch Controls
         if (touchController != null) {
             if (touchController.isJoystickActive) {
                 val joyX = touchController.joystickDeltaX
@@ -132,27 +101,16 @@ class Player(
                 xMove = joyX * currentSpeed
                 yMove = joyY * currentSpeed
 
-                if (kotlin.math.abs(joyX).compareTo(0.1f) > 0) {
-                    facingRight = joyX > 0
-                }
-                if (kotlin.math.abs(joyY).compareTo(0.1f) > 0) {
-                    facingDown = joyY < 0
-                }
+                if (abs(joyX) > 0.1f) facingRight = joyX > 0
+                if (abs(joyY) > 0.1f) facingDown = joyY < 0
             }
 
-            // Attack button - use "just pressed" for single-fire
             if (touchController.isAttackJustPressed && !isAttacking) {
                 performAttack()
             }
-
-            // ✅ FIX: Interact button poate fi folosit pentru jump (opțional)
-            // Decomentează dacă vrei jump cu interact button:
-            // if (touchController.isInteractPressed && !isJumping) {
-            //     performJump()
-            // }
         }
 
-        // ✅ Keyboard controls (pentru desktop testing)
+        // Keyboard Controls
         if (Gdx.input.isKeyPressed(Input.Keys.W)) yMove = currentSpeed
         if (Gdx.input.isKeyPressed(Input.Keys.S)) yMove = -currentSpeed
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
@@ -164,19 +122,16 @@ class Player(
             facingRight = true
         }
 
-        // Run cu SHIFT (doar pentru keyboard)
         if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) {
             currentSpeed = runSpeed
-            xMove = if (xMove != 0f) (xMove / normalSpeed) * runSpeed else 0f
-            yMove = if (yMove != 0f) (yMove / normalSpeed) * runSpeed else 0f
+            if (xMove != 0f) xMove = (xMove / normalSpeed) * runSpeed
+            if (yMove != 0f) yMove = (yMove / normalSpeed) * runSpeed
         }
 
-        // Attack cu SPACE (doar pentru keyboard)
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && !isAttacking) {
             performAttack()
         }
 
-        // Update direction enum based on movement
         updateDirection()
     }
 
@@ -194,22 +149,17 @@ class Player(
         val gameState = refLink.gameState
         gameState?.let { state ->
             for (entity in state.getEntities()) {
-                // ✅ FIX: Convertim bounds la Rectangle pentru comparație
                 val entityRect = entity.bounds.toRectangle()
-
-                if (entity is Agent && attackBounds.overlaps(entityRect)) {
-                    entity.takeDamage(attackDamage)
-                }
-                if (entity is Animal && attackBounds.overlaps(entityRect)) {
-                    entity.takeDamage(attackDamage)
+                if ((entity is Agent || entity is Animal) && attackBounds.overlaps(entityRect)) {
+                    // Verificăm să nu ne lovim singuri (deși lista entităților nu include player-ul de obicei)
+                    if (entity != this) {
+                        // Presupunând că Agent/Animal au metoda takeDamage
+                        if (entity is Agent) entity.takeDamage(attackDamage)
+                        if (entity is Animal) entity.takeDamage(attackDamage)
+                    }
                 }
             }
         }
-    }
-
-    private fun performJump() {
-        isJumping = true
-        jumpTime = 0f
     }
 
     private fun move() {
@@ -219,7 +169,6 @@ class Player(
 
     private fun moveX() {
         if (xMove == 0f) return
-
         val newX = x + xMove
         val map = refLink.map ?: return
         val TS = TileConstants.TILE_SIZE
@@ -232,26 +181,16 @@ class Player(
         var canMove = true
         for (tileY in tileYBottom..tileYTop) {
             if (xMove > 0) {
-                if (map.getTile(tileXRight, tileY).isSolid) {
-                    canMove = false
-                    break
-                }
+                if (map.getTile(tileXRight, tileY).isSolid) { canMove = false; break }
             } else {
-                if (map.getTile(tileXLeft, tileY).isSolid) {
-                    canMove = false
-                    break
-                }
+                if (map.getTile(tileXLeft, tileY).isSolid) { canMove = false; break }
             }
         }
-
-        if (canMove) {
-            x = newX
-        }
+        if (canMove) x = newX
     }
 
     private fun moveY() {
         if (yMove == 0f) return
-
         val newY = y + yMove
         val map = refLink.map ?: return
         val TS = TileConstants.TILE_SIZE
@@ -264,86 +203,76 @@ class Player(
         var canMove = true
         for (tileX in tileXLeft..tileXRight) {
             if (yMove > 0) {
-                if (map.getTile(tileX, tileYTop).isSolid) {
-                    canMove = false
-                    break
-                }
+                if (map.getTile(tileX, tileYTop).isSolid) { canMove = false; break }
             } else {
-                if (map.getTile(tileX, tileYBottom).isSolid) {
-                    canMove = false
-                    break
-                }
+                if (map.getTile(tileX, tileYBottom).isSolid) { canMove = false; break }
             }
         }
-
-        if (canMove) {
-            y = newY
-        }
+        if (canMove) y = newY
     }
 
     private fun updateAnimations() {
         stateTime += Gdx.graphics.deltaTime
 
-        currentAnimation = when {
+        // Selectăm animația potrivită
+        val nextAnimation = when {
             isHurt -> Assets.playerHurt ?: createDefaultAnimation()
-            isAttacking -> {
-                // Atacul se face in directia in care jucatorul se uita
-                when (direction) {
-                    Direction.UP -> Assets.playerHalfslashUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
-                    Direction.DOWN -> Assets.playerHalfslashDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
-                    Direction.LEFT -> Assets.playerHalfslashLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
-                    Direction.RIGHT -> Assets.playerHalfslashRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
-                }
-            }
-            isJumping -> {
-                // Saritura se face in directia in care jucatorul se uita
-                when (direction) {
-                    Direction.UP -> Assets.playerJumpUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
-                    Direction.DOWN -> Assets.playerJumpDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
-                    Direction.LEFT -> Assets.playerJumpLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
-                    Direction.RIGHT -> Assets.playerJumpRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
-                }
-            }
+            isAttacking -> when (direction) {
+                Direction.UP -> Assets.playerHalfslashUp ?: Assets.playerIdleUp
+                Direction.DOWN -> Assets.playerHalfslashDown ?: Assets.playerIdleDown
+                Direction.LEFT -> Assets.playerHalfslashLeft ?: Assets.playerIdleLeft
+                Direction.RIGHT -> Assets.playerHalfslashRight ?: Assets.playerIdleRight
+            } ?: createDefaultAnimation()
+
+            isJumping -> when (direction) {
+                Direction.UP -> Assets.playerJumpUp ?: Assets.playerIdleUp
+                Direction.DOWN -> Assets.playerJumpDown ?: Assets.playerIdleDown
+                Direction.LEFT -> Assets.playerJumpLeft ?: Assets.playerIdleLeft
+                Direction.RIGHT -> Assets.playerJumpRight ?: Assets.playerIdleRight
+            } ?: createDefaultAnimation()
+
             xMove != 0f || yMove != 0f -> {
-                // Miscare - aleagem animatia pe baza directiei
                 if (currentSpeed > normalSpeed) {
-                    // Run animation
                     when (direction) {
-                        Direction.UP -> Assets.playerRunUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
-                        Direction.DOWN -> Assets.playerRunDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
-                        Direction.LEFT -> Assets.playerRunLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
-                        Direction.RIGHT -> Assets.playerRunRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
-                    }
+                        Direction.UP -> Assets.playerRunUp
+                        Direction.DOWN -> Assets.playerRunDown
+                        Direction.LEFT -> Assets.playerRunLeft
+                        Direction.RIGHT -> Assets.playerRunRight
+                    } ?: createDefaultAnimation()
                 } else {
-                    // Walk animation
                     when (direction) {
-                        Direction.UP -> Assets.playerWalkUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
-                        Direction.DOWN -> Assets.playerWalkDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
-                        Direction.LEFT -> Assets.playerWalkLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
-                        Direction.RIGHT -> Assets.playerWalkRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
-                    }
+                        Direction.UP -> Assets.playerWalkUp
+                        Direction.DOWN -> Assets.playerWalkDown
+                        Direction.LEFT -> Assets.playerWalkLeft
+                        Direction.RIGHT -> Assets.playerWalkRight
+                    } ?: createDefaultAnimation()
                 }
             }
             else -> {
-                // ✅ IDLE - pastreaza directia curenta (folosim enum-ul direction)
+                // IDLE: Folosim direcția curentă pentru a rămâne cu fața unde trebuie
                 when (direction) {
-                    Direction.UP -> Assets.playerIdleUp ?: createDefaultAnimation()
-                    Direction.DOWN -> Assets.playerIdleDown ?: createDefaultAnimation()
-                    Direction.LEFT -> Assets.playerIdleLeft ?: createDefaultAnimation()
-                    Direction.RIGHT -> Assets.playerIdleRight ?: createDefaultAnimation()
-                }
+                    Direction.UP -> Assets.playerIdleUp
+                    Direction.DOWN -> Assets.playerIdleDown
+                    Direction.LEFT -> Assets.playerIdleLeft
+                    Direction.RIGHT -> Assets.playerIdleRight
+                } ?: createDefaultAnimation()
             }
         }
 
+        // ✅ FIX: Resetăm stateTime dacă s-a schimbat animația (ex: Run -> Idle)
+        // Asta previne ca jucătorul să arate "înghețat" într-o poziție de mers
+        if (nextAnimation != previousAnimation) {
+            stateTime = 0f
+            previousAnimation = nextAnimation
+        }
+
+        currentAnimation = nextAnimation
         currentFrame = currentAnimation.getKeyFrame(stateTime, true)
     }
 
     fun takeDamage(damage: Int) {
         if (isHurt) return
-
-        health -= damage
-        health = health.coerceAtLeast(0)
-
+        health = (health - damage).coerceAtLeast(0)
         if (health <= 0) {
             isHurt = true
             stateTime = 0f
@@ -351,8 +280,7 @@ class Player(
     }
 
     fun heal(amount: Int) {
-        health += amount
-        health = health.coerceAtMost(maxHealth)
+        health = (health + amount).coerceAtMost(maxHealth)
     }
 
     fun resetHealth() {
@@ -360,62 +288,25 @@ class Player(
         isHurt = false
     }
 
-    /**
-     * Sets the entity position and updates bounds
-     */
     override fun setPosition(newX: Float, newY: Float) {
         super.setPosition(newX, newY)
         updateBounds()
     }
 
-    /**
-     * Updates the player bounds after position change
-     */
-    override fun updateBounds() {
-        // Bounds are dynamically calculated via property getter
-        // This override can be used for additional logic if needed
-    }
-
-    /**
-     * Updates the current direction based on movement
-     */
     private fun updateDirection() {
-        // Actualizam directia DOAR daca ne miscam
         if (xMove != 0f || yMove != 0f) {
             direction = when {
                 abs(xMove) > abs(yMove) -> if (facingRight) Direction.RIGHT else Direction.LEFT
                 yMove > 0 -> Direction.UP
                 yMove < 0 -> Direction.DOWN
-                else -> direction // Nu ar trebui sa ajungem aici
+                else -> direction
             }
         }
-        // Daca nu ne miscam (xMove == 0 && yMove == 0), pastra directia actuala
     }
 
-    /**
-     * Gets the maximum health value
-     * @return Maximum health
-     */
     fun getMaxHealth(): Int = maxHealth
-
-    /**
-     * Checks if player is currently hurt
-     * @return True if player is hurt
-     */
     fun isPlayerHurt(): Boolean = isHurt
-
-    /**
-     * Gets the current facing direction
-     * @return Current Direction enum value
-     */
     fun getFacingDirection(): Direction = direction
-
-    /**
-     * Checks if player is facing a specific direction
-     * @param dir The direction to check
-     * @return True if facing that direction
-     */
-    fun isFacing(dir: Direction): Boolean = direction == dir
 
     override fun render(batch: SpriteBatch) {
         batch.draw(currentFrame, x, y, width.toFloat(), height.toFloat())

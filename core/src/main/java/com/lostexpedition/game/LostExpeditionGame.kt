@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.lostexpedition.game.graphics.Assets
+import com.lostexpedition.game.states.GameState
 import com.lostexpedition.game.states.LoadingScreenState
 import com.lostexpedition.game.states.State
 import com.lostexpedition.game.utils.DebugLogger
@@ -20,16 +21,13 @@ class LostExpeditionGame : ApplicationAdapter() {
         batch = SpriteBatch()
         refLinks = RefLinks(this)
 
-        // ✅ SETARE ANDROID: Dezactivăm tastatura și activăm TouchController
-        // refLinks.touchController este deja definit în RefLinks
+        // Activăm TouchController pentru Android
         Gdx.input.inputProcessor = refLinks.touchController
 
         refLinks.setState(LoadingScreenState(refLinks))
     }
 
     override fun render() {
-        // ✅ ELIMINAT: handleFullscreenToggle() - nu există F11 pe mobil
-
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
 
@@ -44,9 +42,22 @@ class LostExpeditionGame : ApplicationAdapter() {
         State.currentState?.render(batch)
     }
 
+    // ✅ IMPLEMENTARE NOUĂ: Salvare automată la pauză/minimizare
+    override fun pause() {
+        super.pause()
+        try {
+            if (State.currentState is GameState) {
+                (State.currentState as GameState).saveCurrentState()
+                DebugLogger.log("Lifecycle", "Joc salvat automat la pauză!")
+            }
+        } catch (e: Exception) {
+            DebugLogger.error("Lifecycle", "Eroare la auto-save: ${e.message}")
+        }
+    }
+
     override fun resize(width: Int, height: Int) {
-        // ✅ OPTIMIZARE MOBIL: Calculăm viewport-ul bazat pe ecranul telefonului
         val aspectRatio = width.toFloat() / height.toFloat()
+        // Păstrăm lățimea fixă și ajustăm înălțimea pentru a vedea mai mult/puțin din hartă vertical
         val gameWidth = 1500f
         val gameHeight = gameWidth / aspectRatio
 

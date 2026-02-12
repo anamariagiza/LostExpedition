@@ -1,216 +1,113 @@
 package com.lostexpedition.game.states
 
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Rectangle
-import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.utils.RefLinks
-import kotlin.math.sin
 
 class PauseState(refLink: RefLinks) : State(refLink) {
 
-    private val menuOptions = arrayOf(
-        "RESUME",
-        "SAVE GAME",
-        "MAIN MENU",
-        "QUIT"
-    )
-
-    private var selectedOption = 0
-    private val buttonBounds = mutableListOf<Rectangle>()
-
-    private val shapeRenderer = ShapeRenderer()
-    private val titleFont = BitmapFont().apply {
+    private val font = BitmapFont().apply {
         data.setScale(3f)
-        color = Color.YELLOW
-    }
-    private val buttonFont = BitmapFont().apply {
-        data.setScale(1.3f)
-        color = Color.WHITE
     }
 
-    private val backgroundColor = Color(0f, 0f, 0f, 0.7f)
-    private val selectedColor = Color(0.63f, 0.32f, 0.18f, 1f)
-    private val unselectedColor = Color(1f, 1f, 1f, 0.7f)
-
-    private var lastTouchTime = 0L
-    private val touchCooldown = 200L
+    private val buttons = arrayOf("RESUME", "EXIT TO MENU")
+    private val buttonBounds = mutableListOf<Rectangle>()
+    private val shapeRenderer = ShapeRenderer()
 
     init {
-        println("PauseState initialized")
-        calculateButtonBounds()
+        // Calculăm pozițiile butoanelor o singură dată
+        val buttonWidth = 400f
+        val buttonHeight = 100f
+        val centerX = (Gdx.graphics.width - buttonWidth) / 2
+        val startY = Gdx.graphics.height / 2f
+
+        // Butonul RESUME
+        buttonBounds.add(Rectangle(centerX, startY + 20f, buttonWidth, buttonHeight))
+        // Butonul EXIT
+        buttonBounds.add(Rectangle(centerX, startY - 120f, buttonWidth, buttonHeight))
     }
 
     override fun update(delta: Float) {
-        handleInput()
-    }
-
-    override fun render(batch: SpriteBatch) {
-        val width = Gdx.graphics.width.toFloat()
-        val height = Gdx.graphics.height.toFloat()
-
-        // Render background state
-        refLink.getPersistedGameState()?.render(batch)
-
-        // Overlay
-        batch.end()
-        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, width, height)
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-        shapeRenderer.color = backgroundColor
-        shapeRenderer.rect(0f, 0f, width, height)
-        shapeRenderer.end()
-        batch.begin()
-
-        // Title
-        batch.projectionMatrix.setToOrtho2D(0f, 0f, width, height)
-        val title = "PAUZĂ"
-        val titleLayout = titleFont.draw(batch, title, 0f, 0f)
-        val titleX = (width - titleLayout.width) / 2f
-        titleFont.draw(batch, title, titleX, height - 100f)
-
-        batch.end()
-
-        // Buttons
-        val buttonWidth = 400f
-        val buttonHeight = 60f
-        val startY = height / 2f + 100f
-        val gap = 70f
-
-        buttonBounds.clear()
-
-        for (i in menuOptions.indices) {
-            val x = (width - buttonWidth) / 2f
-            val y = startY - i * gap
-
-            buttonBounds.add(Rectangle(x, y, buttonWidth, buttonHeight))
-
-            val isSelected = (i == selectedOption)
-
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-            if (isSelected) {
-                val pulse = (sin(System.currentTimeMillis() * 0.007) * 7).toFloat()
-                shapeRenderer.color = selectedColor
-                shapeRenderer.rect(
-                    x - pulse,
-                    y - pulse,
-                    buttonWidth + 2 * pulse,
-                    buttonHeight + 2 * pulse
-                )
-            } else {
-                shapeRenderer.color = unselectedColor
-                shapeRenderer.rect(x, y, buttonWidth, buttonHeight)
-            }
-            shapeRenderer.end()
-
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
-            shapeRenderer.color = Color.YELLOW
-            shapeRenderer.rect(x, y, buttonWidth, buttonHeight)
-            shapeRenderer.end()
-
-            batch.begin()
-            buttonFont.color = if (isSelected) Color.WHITE else Color.YELLOW
-            val textLayout = buttonFont.draw(batch, menuOptions[i], 0f, 0f)
-            val textX = x + (buttonWidth - textLayout.width) / 2f
-            val textY = y + (buttonHeight + textLayout.height) / 2f
-            buttonFont.draw(batch, menuOptions[i], textX, textY)
-            batch.end()
-        }
-    }
-
-    private fun handleInput() {
-        // Touch
-        if (Gdx.input.justTouched() &&
-            System.currentTimeMillis() - lastTouchTime > touchCooldown) {
-
-            lastTouchTime = System.currentTimeMillis()
+        if (Gdx.input.justTouched()) {
             val touchX = Gdx.input.x.toFloat()
-            val touchY = Gdx.graphics.height - Gdx.input.y.toFloat()
+            val touchY = Gdx.graphics.height - Gdx.input.y.toFloat() // Inversăm Y pentru coordonatele lumii
 
-            buttonBounds.forEachIndexed { index, rect ->
-                if (rect.contains(touchX, touchY)) {
-                    selectedOption = index
-                    executeSelectedOption()
-                }
+            // Verificăm RESUME
+            if (buttonBounds[0].contains(touchX, touchY)) {
+                resumeGame()
             }
-        }
-
-        // Keyboard
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
-            selectedOption--
-            if (selectedOption < 0) selectedOption = menuOptions.size - 1
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
-            selectedOption++
-            if (selectedOption >= menuOptions.size) selectedOption = 0
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-            executeSelectedOption()
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.P) ||
-            Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            resumeGame()
-        }
-    }
-
-    private fun executeSelectedOption() {
-        when (selectedOption) {
-            0 -> resumeGame()
-            1 -> saveGame()
-            2 -> returnToMenu()
-            3 -> quitGame()
+            // Verificăm EXIT
+            else if (buttonBounds[1].contains(touchX, touchY)) {
+                refLink.setState(MenuState(refLink))
+            }
         }
     }
 
     private fun resumeGame() {
-        println("Resuming game...")
-        refLink.getPersistedGameState()?.let { gameState ->
-            refLink.setState(gameState)
-        }
+        // Reîncărcăm jocul din salvarea pe care am făcut-o automat când am apăsat butonul de pauză
+        // Parametrii: level 0 (ignorat la load), isLoadingFromSave = true
+        refLink.setState(GameState(refLink, 0, true))
     }
 
-    private fun saveGame() {
-        println("Saving game...")
-        refLink.getPersistedGameState()?.let { gameState ->
-            gameState.saveCurrentState()
-        }
-    }
+    override fun render(batch: SpriteBatch) {
+        // 1. Curățăm ecranul cu o culoare închisă
+        Gdx.gl.glClearColor(0.1f, 0.1f, 0.1f, 1f)
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
 
-    private fun returnToMenu() {
-        println("Returning to main menu...")
-        refLink.setState(MenuState(refLink))
-    }
+        // 2. Setăm matricea de proiecție pentru UI
+        batch.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+        shapeRenderer.projectionMatrix = batch.projectionMatrix
 
-    private fun quitGame() {
-        println("Quitting game...")
-        Gdx.app.exit()
-    }
+        // 3. Desenăm butoanele (ShapeRenderer)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
 
-    private fun calculateButtonBounds() {
-        buttonBounds.clear()
-        val width = Gdx.graphics.width.toFloat()
-        val height = Gdx.graphics.height.toFloat()
-        val buttonWidth = 400f
-        val buttonHeight = 60f
-        val startY = height / 2f + 100f
-        val gap = 70f
+        // Buton RESUME (Verde)
+        shapeRenderer.color = Color(0f, 0.5f, 0f, 1f)
+        shapeRenderer.rect(buttonBounds[0].x, buttonBounds[0].y, buttonBounds[0].width, buttonBounds[0].height)
 
-        for (i in menuOptions.indices) {
-            val x = (width - buttonWidth) / 2f
-            val y = startY - i * gap
-            buttonBounds.add(Rectangle(x, y, buttonWidth, buttonHeight))
-        }
+        // Buton EXIT (Roșu)
+        shapeRenderer.color = Color(0.5f, 0f, 0f, 1f)
+        shapeRenderer.rect(buttonBounds[1].x, buttonBounds[1].y, buttonBounds[1].width, buttonBounds[1].height)
+
+        shapeRenderer.end()
+
+        // 4. Desenăm textul (SpriteBatch)
+        // AICI ERA EROAREA: Trebuie să apelăm begin() înainte de draw()
+        batch.begin()
+
+        // Titlu PAUSE
+        font.color = Color.WHITE
+        val titleLayout = GlyphLayout(font, "GAME PAUSED")
+        font.draw(batch, "GAME PAUSED", (Gdx.graphics.width - titleLayout.width) / 2, Gdx.graphics.height - 100f)
+
+        // Text RESUME
+        val resumeText = "RESUME"
+        val resumeLayout = GlyphLayout(font, resumeText)
+        font.draw(batch, resumeText,
+            buttonBounds[0].x + (buttonBounds[0].width - resumeLayout.width) / 2,
+            buttonBounds[0].y + (buttonBounds[0].height + resumeLayout.height) / 2
+        )
+
+        // Text EXIT
+        val exitText = "EXIT"
+        val exitLayout = GlyphLayout(font, exitText)
+        font.draw(batch, exitText,
+            buttonBounds[1].x + (buttonBounds[1].width - exitLayout.width) / 2,
+            buttonBounds[1].y + (buttonBounds[1].height + exitLayout.height) / 2
+        )
+
+        batch.end()
     }
 
     override fun dispose() {
+        font.dispose()
         shapeRenderer.dispose()
-        titleFont.dispose()
-        buttonFont.dispose()
     }
 }
