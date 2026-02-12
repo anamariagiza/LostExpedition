@@ -87,8 +87,12 @@ class GameState(
 
     private val font = BitmapFont()
     private val shapeRenderer = ShapeRenderer()
-
     private val currentZoom = 0.9f
+
+    private var objectiveText: String? = null
+    private var showObjectiveInCenter = false
+    private var objectiveTimer = 0f
+    private val OBJECTIVE_DURATION = 3f // 3 secunde
 
     init {
         refLink.gameState = this

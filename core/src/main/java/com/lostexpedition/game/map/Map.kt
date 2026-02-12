@@ -148,26 +148,25 @@ class Map(private val refLink: RefLinks, path: String, private val levelIndex: I
     private fun isSolidInternal(gid: Int, x: Int, y: Int, levelIndex: Int): Boolean {
         if (gid == 0) return false
 
+        // 1. Verificăm dacă este scară - DACĂ DA, returnăm FALSE (jucătorul poate trece/urca)
+        // Aceasta rezolvă problema blocajului la scări identificată în cerință.
+        // if (gid in TileConstants.STAIRS_GIDS) return false
+
+        // 2. Verificăm obiectele universal solide (stânci)
         if (gid in TileConstants.ROCK_GIDS) return true
 
+        // 3. Logica specifică pe nivel (sincronizată cu versiunea Desktop)
         when (levelIndex) {
-            0 -> { // Nivel 1
+            0 -> { // Level 1: Forest
                 if (gid == TileConstants.GRASS_TILE_SOLID) return true
                 if (gid == TileConstants.WALL_TILE_SOLID) return true
             }
-            1 -> { // Nivel 2
+            1 -> { // Level 2: Caves/Dungeon
                 if (gid == TileConstants.WALL_TILE_SOLID) return true
+                // Ușile închise sunt solide
                 if (gid in TileConstants.DOOR_CLOSED_GIDS) return true
             }
-            2 -> { // Nivel 3
-                if (tiledMap.layers.count > 2) {
-                    val objectLayer = tiledMap.layers[2] as? TiledMapTileLayer
-                    val objCell = objectLayer?.getCell(x, y)
-                    val objGid = objCell?.tile?.id ?: 0
-                    if (objGid != 0 && objGid !in TileConstants.DOOR_OPEN_GIDS_L3) {
-                        return true
-                    }
-                }
+            2 -> { // Level 3: Final Arena
                 if (gid == TileConstants.WALL_LEVEL3) return true
                 if (gid in TileConstants.DOOR_FINAL_CLOSED_GIDS) return true
             }
