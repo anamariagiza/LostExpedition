@@ -241,56 +241,33 @@ object Assets {
     }
 
     private fun loadPlayerAssets() {
-        // IDLE - 4 directii x 2 frame-uri
-        val playerIdleSheet = loadTexture("textures/player/idle.png")
-        if (playerIdleSheet != null) {
-            playerIdleUp = loadAnimationFromRow(playerIdleSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 0, 2, 0.2f)
-            playerIdleLeft = loadAnimationFromRow(playerIdleSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 1, 2, 0.2f)
-            playerIdleDown = loadAnimationFromRow(playerIdleSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 2, 2, 0.2f)
-            playerIdleRight = loadAnimationFromRow(playerIdleSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 3, 2, 0.2f)
-        }
+        // Oglindim logica din codul initial kt: loadAnimationRow(path, rows, cols, rowToCrop)
+        playerIdleUp = loadAnimationRow("textures/player/idle.png", 4, 2, 0, 0.2f)
+        playerIdleLeft = loadAnimationRow("textures/player/idle.png", 4, 2, 1, 0.2f)
+        playerIdleDown = loadAnimationRow("textures/player/idle.png", 4, 2, 2, 0.2f)
+        playerIdleRight = loadAnimationRow("textures/player/idle.png", 4, 2, 3, 0.2f)
 
-        // WALK - 4 directii x 9 frame-uri
-        val playerWalkSheet = loadTexture("textures/player/walk.png")
-        if (playerWalkSheet != null) {
-            playerWalkUp = loadAnimationFromRow(playerWalkSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 0, 9, 0.15f)
-            playerWalkLeft = loadAnimationFromRow(playerWalkSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 1, 9, 0.15f)
-            playerWalkDown = loadAnimationFromRow(playerWalkSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 2, 9, 0.15f)
-            playerWalkRight = loadAnimationFromRow(playerWalkSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 3, 9, 0.15f)
-        }
+        playerWalkUp = loadAnimationRow("textures/player/walk.png", 4, 9, 0, 0.15f)
+        playerWalkLeft = loadAnimationRow("textures/player/walk.png", 4, 9, 1, 0.15f)
+        playerWalkDown = loadAnimationRow("textures/player/walk.png", 4, 9, 2, 0.15f)
+        playerWalkRight = loadAnimationRow("textures/player/walk.png", 4, 9, 3, 0.15f)
 
-        // RUN - 4 directii x 8 frame-uri
-        val playerRunSheet = loadTexture("textures/player/run.png")
-        if (playerRunSheet != null) {
-            playerRunUp = loadAnimationFromRow(playerRunSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 0, 8, 0.1f)
-            playerRunLeft = loadAnimationFromRow(playerRunSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 1, 8, 0.1f)
-            playerRunDown = loadAnimationFromRow(playerRunSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 2, 8, 0.1f)
-            playerRunRight = loadAnimationFromRow(playerRunSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 3, 8, 0.1f)
-        }
+        playerRunUp = loadAnimationRow("textures/player/run.png", 4, 8, 0, 0.1f)
+        playerRunLeft = loadAnimationRow("textures/player/run.png", 4, 8, 1, 0.1f)
+        playerRunDown = loadAnimationRow("textures/player/run.png", 4, 8, 2, 0.1f)
+        playerRunRight = loadAnimationRow("textures/player/run.png", 4, 8, 3, 0.1f)
 
-        // JUMP - 4 directii x 5 frame-uri
-        val playerJumpSheet = loadTexture("textures/player/jump.png")
-        if (playerJumpSheet != null) {
-            playerJumpUp = loadAnimationFromRow(playerJumpSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 0, 5, 0.15f)
-            playerJumpLeft = loadAnimationFromRow(playerJumpSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 1, 5, 0.15f)
-            playerJumpDown = loadAnimationFromRow(playerJumpSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 2, 5, 0.15f)
-            playerJumpRight = loadAnimationFromRow(playerJumpSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 3, 5, 0.15f)
-        }
+        playerHalfslashLeft = loadAnimationRow("textures/player/slash.png", 4, 6, 1, 0.1f)
+        playerHalfslashRight = loadAnimationRow("textures/player/slash.png", 4, 6, 3, 0.1f)
+        playerHalfslashUp = loadAnimationRow("textures/player/slash.png", 4, 6, 0, 0.1f)
+        playerHalfslashDown = loadAnimationRow("textures/player/slash.png", 4, 6, 2, 0.1f)
 
-        // HURT - 1 rand x 6 frame-uri
-        val playerHurtSheet = loadTexture("textures/player/hurt.png")
-        if (playerHurtSheet != null) {
-            playerHurt = loadAnimationFromRow(playerHurtSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 0, 6, 0.1f)
-        }
+        playerJumpLeft = loadAnimationRow("textures/player/jump.png", 4, 5, 1, 0.15f)
+        playerJumpRight = loadAnimationRow("textures/player/jump.png", 4, 5, 3, 0.15f)
+        playerJumpUp = loadAnimationRow("textures/player/jump.png", 4, 5, 0, 0.15f)
+        playerJumpDown = loadAnimationRow("textures/player/jump.png", 4, 5, 2, 0.15f)
 
-        // HALFSLASH (Attack) - 4 directii x 7 frame-uri
-        val playerHalfslashSheet = loadTexture("textures/player/halfslash.png")
-        if (playerHalfslashSheet != null) {
-            playerHalfslashUp = loadAnimationFromRow(playerHalfslashSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 0, 7, 0.08f)
-            playerHalfslashLeft = loadAnimationFromRow(playerHalfslashSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 1, 7, 0.08f)
-            playerHalfslashDown = loadAnimationFromRow(playerHalfslashSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 2, 7, 0.08f)
-            playerHalfslashRight = loadAnimationFromRow(playerHalfslashSheet, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT, 3, 7, 0.08f)
-        }
+        playerHurt = loadAnimationRow("textures/player/hurt.png", 1, 6, 0, 0.1f)
     }
 
     private fun loadAgentAssets() {
@@ -342,26 +319,56 @@ object Assets {
     }
 
     private fun loadAnimalAssets() {
-        // MONKEY - Animatie walk cu frame-uri de dimensiuni variabile
+        // MONKEY - Daca sprite sheet-ul are 4 randuri (Up, Left, Down, Right)
+        // folosim randul 2 (DOWN - cu fata spre jucator)
         val monkeySheet = loadTexture("textures/animals/monkey.png")
         if (monkeySheet != null) {
-            // In Java, monkey-ul are 13 frame-uri cu dimensiuni variabile
-            // Pentru simplificare in LibGDX, folosim o dimensiune uniforma
-            monkeyWalkAnim = loadAnimationFromRow(monkeySheet, MONKEY_FRAME_WIDTH, MONKEY_FRAME_HEIGHT, 0, 13, 0.12f)
+            // Verificam daca e un grid 4x4 sau un singur rand cu frame-uri variabile
+            // Daca inaltimea = 4 * MONKEY_FRAME_HEIGHT, atunci e grid 4x4
+            if (monkeySheet.height >= 4 * MONKEY_FRAME_HEIGHT) {
+                // Grid 4x4 - folosim randul 2 (DOWN)
+                monkeyWalkAnim = loadAnimationFromRow(monkeySheet, MONKEY_FRAME_WIDTH, MONKEY_FRAME_HEIGHT, 2, 4, 0.12f)
+            } else {
+                // Un singur rand cu frame-uri variabile (ca in Java original)
+                val monkeyFrames = arrayOf(
+                    Pair(0, 36), Pair(36, 36), Pair(72, 28), Pair(100, 32),
+                    Pair(132, 28), Pair(160, 34), Pair(194, 39), Pair(233, 41),
+                    Pair(274, 29), Pair(303, 36), Pair(339, 38), Pair(377, 37),
+                    Pair(414, 36)
+                )
+                monkeyWalkAnim = loadAnimationFromVariableFrames(monkeySheet, monkeyFrames, MONKEY_FRAME_HEIGHT, 0.12f)
+            }
         }
 
-        // JAGUAR - Animatie walk cu frame-uri de dimensiuni variabile
+        // JAGUAR - Aceeasi logica
         val jaguarSheet = loadTexture("textures/animals/jaguar.png")
         if (jaguarSheet != null) {
-            // In Java, jaguar-ul are 8 frame-uri cu dimensiuni variabile
-            jaguarWalkAnim = loadAnimationFromRow(jaguarSheet, JAGUAR_FRAME_WIDTH, JAGUAR_FRAME_HEIGHT, 0, 8, 0.15f)
+            if (jaguarSheet.height >= 4 * JAGUAR_FRAME_HEIGHT) {
+                // Grid 4x4 - folosim randul 2 (DOWN)
+                jaguarWalkAnim = loadAnimationFromRow(jaguarSheet, JAGUAR_FRAME_WIDTH, JAGUAR_FRAME_HEIGHT, 2, 4, 0.15f)
+            } else {
+                // Un singur rand cu frame-uri variabile
+                val jaguarFrames = arrayOf(
+                    Pair(0, 76), Pair(76, 73), Pair(149, 75), Pair(224, 71),
+                    Pair(295, 70), Pair(365, 66), Pair(431, 63), Pair(494, 75)
+                )
+                jaguarWalkAnim = loadAnimationFromVariableFrames(jaguarSheet, jaguarFrames, JAGUAR_FRAME_HEIGHT, 0.15f)
+            }
         }
 
-        // BAT - Animatie zbor cu frame-uri de dimensiuni variabile
+        // BAT - Aceeasi logica
         val batSheet = loadTexture("textures/animals/bat.png")
         if (batSheet != null) {
-            // In Java, bat-ul are 4 frame-uri cu dimensiuni variabile
-            batAnim = loadAnimationFromRow(batSheet, BAT_FRAME_WIDTH, BAT_FRAME_HEIGHT, 0, 4, 0.15f)
+            if (batSheet.height >= 4 * BAT_FRAME_HEIGHT) {
+                // Grid 4x4 - folosim randul 2 (DOWN)
+                batAnim = loadAnimationFromRow(batSheet, BAT_FRAME_WIDTH, BAT_FRAME_HEIGHT, 2, 4, 0.15f)
+            } else {
+                // Un singur rand cu frame-uri variabile
+                val batFrames = arrayOf(
+                    Pair(0, 18), Pair(18, 21), Pair(39, 17), Pair(56, 22)
+                )
+                batAnim = loadAnimationFromVariableFrames(batSheet, batFrames, BAT_FRAME_HEIGHT, 0.15f)
+            }
         }
     }
 
@@ -405,6 +412,7 @@ object Assets {
 
     /**
      * Incarca o animatie dintr-un rand specific al unui spritesheet
+     * VERSIUNEA PENTRU TEXTURE OBJECT (pentru Agent)
      */
     private fun loadAnimationFromRow(
         texture: Texture,
@@ -436,6 +444,80 @@ object Assets {
             }
         } catch (e: Exception) {
             println("Eroare la incarcarea animatiei din randul $row: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Functie helper care taie un rand specific dintr-un spritesheet (din codul initial).
+     * VERSIUNEA PENTRU STRING PATH (pentru Player)
+     * rows = numar total de randuri in spritesheet
+     * cols = numar de coloane (frame-uri) de taiat
+     * rowToCrop = randul specific de extras (0-indexed)
+     */
+    private fun loadAnimationRow(
+        path: String,
+        rows: Int,
+        cols: Int,
+        rowToCrop: Int,
+        frameDuration: Float
+    ): Animation<TextureRegion>? {
+        return try {
+            val handle = Gdx.files.internal(path)
+            if (!handle.exists()) return null
+
+            val texture = Texture(handle)
+            val frameWidth = texture.width / cols
+            val frameHeight = texture.height / rows
+
+            val tempFrames = TextureRegion.split(texture, frameWidth, frameHeight)
+            val frameArray = GdxArray<TextureRegion>()
+
+            // Luam doar randul corespunzator directiei dorite
+            if (rowToCrop < tempFrames.size) {
+                for (c in 0 until cols) {
+                    frameArray.add(tempFrames[rowToCrop][c])
+                }
+            }
+
+            Animation(frameDuration, frameArray, Animation.PlayMode.LOOP)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Incarca o animatie cu frame-uri de dimensiuni variabile
+     * @param texture Texture-ul sursa
+     * @param frameData Array de perechi (x, width) pentru fiecare frame
+     * @param frameHeight Inaltimea comuna a tuturor frame-urilor
+     * @param frameDuration Durata unui frame in secunde
+     */
+    private fun loadAnimationFromVariableFrames(
+        texture: Texture,
+        frameData: Array<Pair<Int, Int>>,
+        frameHeight: Int,
+        frameDuration: Float
+    ): Animation<TextureRegion>? {
+        return try {
+            val frames = GdxArray<TextureRegion>()
+
+            for ((x, width) in frameData) {
+                // Verificare limite
+                if (x >= 0 && x + width <= texture.width && frameHeight <= texture.height) {
+                    frames.add(TextureRegion(texture, x, 0, width, frameHeight))
+                } else {
+                    println("ATENTIE: Frame-ul la x=$x, width=$width depaseste limitele texture-ului!")
+                }
+            }
+
+            if (frames.size > 0) {
+                Animation(frameDuration, frames, Animation.PlayMode.LOOP)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            println("Eroare la incarcarea animatiei cu frame-uri variabile: ${e.message}")
             null
         }
     }

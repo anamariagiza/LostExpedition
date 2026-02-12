@@ -287,47 +287,50 @@ class Player(
         currentAnimation = when {
             isHurt -> Assets.playerHurt ?: createDefaultAnimation()
             isAttacking -> {
-                if (facingRight)
-                    Assets.playerAttackRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
-                else
-                    Assets.playerAttackLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
+                // Atacul se face in directia in care jucatorul se uita
+                when (direction) {
+                    Direction.UP -> Assets.playerHalfslashUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
+                    Direction.DOWN -> Assets.playerHalfslashDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
+                    Direction.LEFT -> Assets.playerHalfslashLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
+                    Direction.RIGHT -> Assets.playerHalfslashRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
+                }
             }
             isJumping -> {
-                if (facingRight)
-                    Assets.playerJumpRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
-                else
-                    Assets.playerJumpLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
+                // Saritura se face in directia in care jucatorul se uita
+                when (direction) {
+                    Direction.UP -> Assets.playerJumpUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
+                    Direction.DOWN -> Assets.playerJumpDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
+                    Direction.LEFT -> Assets.playerJumpLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
+                    Direction.RIGHT -> Assets.playerJumpRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
+                }
             }
             xMove != 0f || yMove != 0f -> {
+                // Miscare - aleagem animatia pe baza directiei
                 if (currentSpeed > normalSpeed) {
-                    when {
-                        abs(xMove) > abs(yMove) -> {
-                            if (facingRight)
-                                Assets.playerRunRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
-                            else
-                                Assets.playerRunLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
-                        }
-                        yMove > 0 -> Assets.playerRunUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
-                        else -> Assets.playerRunDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
+                    // Run animation
+                    when (direction) {
+                        Direction.UP -> Assets.playerRunUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
+                        Direction.DOWN -> Assets.playerRunDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
+                        Direction.LEFT -> Assets.playerRunLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
+                        Direction.RIGHT -> Assets.playerRunRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
                     }
                 } else {
-                    when {
-                        abs(xMove) > abs(yMove) -> {
-                            if (facingRight)
-                                Assets.playerWalkRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
-                            else
-                                Assets.playerWalkLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
-                        }
-                        yMove > 0 -> Assets.playerWalkUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
-                        else -> Assets.playerWalkDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
+                    // Walk animation
+                    when (direction) {
+                        Direction.UP -> Assets.playerWalkUp ?: Assets.playerIdleUp ?: createDefaultAnimation()
+                        Direction.DOWN -> Assets.playerWalkDown ?: Assets.playerIdleDown ?: createDefaultAnimation()
+                        Direction.LEFT -> Assets.playerWalkLeft ?: Assets.playerIdleLeft ?: createDefaultAnimation()
+                        Direction.RIGHT -> Assets.playerWalkRight ?: Assets.playerIdleRight ?: createDefaultAnimation()
                     }
                 }
             }
             else -> {
-                when {
-                    !facingDown -> Assets.playerIdleUp ?: createDefaultAnimation()
-                    facingRight -> Assets.playerIdleRight ?: createDefaultAnimation()
-                    else -> Assets.playerIdleLeft ?: createDefaultAnimation()
+                // ✅ IDLE - pastreaza directia curenta (folosim enum-ul direction)
+                when (direction) {
+                    Direction.UP -> Assets.playerIdleUp ?: createDefaultAnimation()
+                    Direction.DOWN -> Assets.playerIdleDown ?: createDefaultAnimation()
+                    Direction.LEFT -> Assets.playerIdleLeft ?: createDefaultAnimation()
+                    Direction.RIGHT -> Assets.playerIdleRight ?: createDefaultAnimation()
                 }
             }
         }
@@ -377,12 +380,16 @@ class Player(
      * Updates the current direction based on movement
      */
     private fun updateDirection() {
-        direction = when {
-            abs(xMove) > abs(yMove) -> if (facingRight) Direction.RIGHT else Direction.LEFT
-            yMove > 0 -> Direction.UP
-            yMove < 0 -> Direction.DOWN
-            else -> direction // Keep current direction if not moving
+        // Actualizam directia DOAR daca ne miscam
+        if (xMove != 0f || yMove != 0f) {
+            direction = when {
+                abs(xMove) > abs(yMove) -> if (facingRight) Direction.RIGHT else Direction.LEFT
+                yMove > 0 -> Direction.UP
+                yMove < 0 -> Direction.DOWN
+                else -> direction // Nu ar trebui sa ajungem aici
+            }
         }
+        // Daca nu ne miscam (xMove == 0 && yMove == 0), pastra directia actuala
     }
 
     /**
