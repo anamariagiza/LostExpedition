@@ -20,4 +20,6 @@ dependencies {
     if(project.hasProperty('enableGraalNative') && enableGraalNative == 'true') {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
   }
+
+
 }

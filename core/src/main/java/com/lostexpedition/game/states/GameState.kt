@@ -3,10 +3,13 @@ package com.lostexpedition.game.states
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.GL20 // <--- IMPORT CRITIC ADAUGAT
+import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Rectangle
@@ -21,7 +24,8 @@ import kotlin.math.abs
 
 class GameState(
     refLink: RefLinks,
-    private var startLevel: Int = 0
+    private var startLevel: Int = 0,
+    private val isLoadingFromSave: Boolean = false
 ) : State(refLink) {
 
     companion object {
@@ -85,19 +89,13 @@ class GameState(
         intArrayOf(110, 15, 111, 15, 110, 16, 111, 16)
     )
 
-    private val font = BitmapFont()
+    private lateinit var font: BitmapFont
     private val shapeRenderer = ShapeRenderer()
     private val currentZoom = 0.9f
-
-    private var objectiveText: String? = null
-    private var showObjectiveInCenter = false
-    private var objectiveTimer = 0f
-    private val OBJECTIVE_DURATION = 3f // 3 secunde
 
     init {
         refLink.gameState = this
 
-        // Configurare Input Processor pentru TouchController
         Gdx.input.inputProcessor = object : com.badlogic.gdx.InputAdapter() {
             override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
                 return refLink.touchController.touchDown(screenX, screenY, pointer, button)
@@ -112,7 +110,28 @@ class GameState(
             }
         }
 
-        initLevelInternal(currentLevelIndex, false)
+        try {
+            val generator = FreeTypeFontGenerator(Gdx.files.internal("font.ttf"))
+            val parameter = FreeTypeFontGenerator.FreeTypeFontParameter()
+
+            parameter.size = 40
+            parameter.borderWidth = 3f
+            parameter.borderColor = Color.BLACK
+            parameter.color = Color.WHITE
+            parameter.characters = FreeTypeFontGenerator.DEFAULT_CHARS + "ăâîșțĂÂÎȘȚ"
+            parameter.minFilter = Texture.TextureFilter.Linear
+            parameter.magFilter = Texture.TextureFilter.Linear
+
+            font = generator.generateFont(parameter)
+            generator.dispose()
+
+        } catch (e: Exception) {
+            Gdx.app.error("FontLoader", "ATENTIE: Nu s-a gasit 'font.ttf'! Se foloseste fontul default.")
+            font = BitmapFont()
+            font.data.setScale(2f)
+        }
+
+        initLevelInternal(currentLevelIndex, isLoadingFromSave)
 
         refLink.gameCamera.zoom = currentZoom
         refLink.gameCamera.update()
@@ -127,13 +146,11 @@ class GameState(
 
         currentMap = Map(refLink, levelPaths[currentLevelIndex], currentLevelIndex)
         refLink.map = currentMap
-        // Setăm limitele hărții în cameră, dar controlul fin îl facem în update()
-        refLink.gameCamera.setMapBounds(currentMap.width, currentMap.height)
+
         fogOfWar = FogOfWar(refLink, currentMap.width, currentMap.height)
 
         val TS = TileConstants.TILE_SIZE
 
-        // Încărcare stare din baza de date sau setare default
         if (loadPlayerStateFromDb) {
             val loadedDataList = refLink.databaseManager.loadGameData()
             if (loadedDataList.isNotEmpty()) {
@@ -158,12 +175,11 @@ class GameState(
                 resetToDefaults()
             }
         } else {
-            // Setări default pentru joc nou (folosind conversia de coordonate)
             currentLevelIndex = desiredLevelIndex
             when (currentLevelIndex) {
                 0 -> {
                     playerStartX = 2f * TS
-                    playerStartY = topDownY(2) // Echivalent cu Y=2 în Tiled (Sus)
+                    playerStartY = topDownY(2)
                 }
                 1 -> {
                     playerStartX = 2f * TS
@@ -180,20 +196,19 @@ class GameState(
         player.health = loadedHealth
         refLink.player = player
 
-        // Centrare inițială cameră
         refLink.gameCamera.position.set(player.x, player.y, 0f)
         refLink.gameCamera.update()
 
-        // După refLink.gameCamera.updateCamera()
         val mapWidth = currentMap.width * TileConstants.TILE_SIZE
         val mapHeight = currentMap.height * TileConstants.TILE_SIZE
 
-// Coordonatele camerei limitate la marginile hărții
-        val camX = refLink.gameCamera.position.x.coerceIn(
+        val camX = MathUtils.clamp(
+            refLink.gameCamera.position.x,
             refLink.gameCamera.viewportWidth / 2f,
             mapWidth - refLink.gameCamera.viewportWidth / 2f
         )
-        val camY = refLink.gameCamera.position.y.coerceIn(
+        val camY = MathUtils.clamp(
+            refLink.gameCamera.position.y,
             refLink.gameCamera.viewportHeight / 2f,
             mapHeight - refLink.gameCamera.viewportHeight / 2f
         )
@@ -221,9 +236,6 @@ class GameState(
         }
     }
 
-    /** * Convertește coordonata Y din sistemul "Top-Down" (Tiled/Java) în "Bottom-Up" (LibGDX).
-     * @param gridY Coordonata Y în tile-uri (de sus în jos, începând de la 0).
-     */
     private fun topDownY(gridY: Int): Float {
         return (currentMap.height - 1 - gridY) * TileConstants.TILE_SIZE
     }
@@ -239,23 +251,18 @@ class GameState(
         currentMap.changeTileGid(x, currentMap.height - 1 - javaY, newGid, layerIndex)
     }
 
-    // ==================== ÎNCĂRCARE ENTITĂȚI (COORDONATE FIXATE) ====================
-
     private fun loadLevel1Entities() {
         val TS = TileConstants.TILE_SIZE
 
-        // Animale - Coordonate din Java/Tiled (Y=0 e sus)
         entities.add(Animal(refLink, 53f * TS, topDownY(5), 51f * TS, 56f * TS, Animal.AnimalType.JAGUAR))
         entities.add(Animal(refLink, 10f * TS, topDownY(36), 8f * TS, 11f * TS, Animal.AnimalType.MONKEY))
         entities.add(Animal(refLink, 89f * TS, topDownY(29), 88f * TS, 91f * TS, Animal.AnimalType.MONKEY))
         entities.add(Animal(refLink, 84f * TS, topDownY(57), 82f * TS, 85f * TS, Animal.AnimalType.BAT))
 
-        // Capcane
         entities.add(Trap(refLink, 66f * TS, topDownY(31), TextureRegion(Assets.spikeTrapImage)))
         entities.add(Trap(refLink, 67f * TS, topDownY(38), TextureRegion(Assets.spikeTrapImage)))
         entities.add(Trap(refLink, 66f * TS, topDownY(45), TextureRegion(Assets.spikeTrapImage)))
 
-        // NPC și Obiecte
         caveGuardianNPC = NPC(refLink, 93f * TS, topDownY(92))
         entities.add(caveGuardianNPC!!)
 
@@ -268,7 +275,6 @@ class GameState(
             entities.add(Key(refLink, 12f * TS, topDownY(85), Assets.keyImage, 0))
         }
 
-        // Panoul de lemn (Lângă punctul de start al jucătorului la Y=2)
         val woodSign1 = DecorativeObject(
             refLink, 2f * TS, topDownY(1), 64, 64,
             TextureRegion(Assets.woodSignImage), true
@@ -386,34 +392,25 @@ class GameState(
         entities.add(woodSign3)
     }
 
-    // ==================== UPDATE (LOGICA JOCULUI) ====================
-
     override fun update(delta: Float) {
-        // Gestionare mesaje temporare (colectare obiecte)
         if (collectionMessage != null &&
             System.currentTimeMillis() - collectionMessageTime > MESSAGE_DURATION_MS
         ) {
             collectionMessage = null
         }
 
-        // Actualizare stare TouchController (calcul de delta joystick și flag-uri de apăsare)
         refLink.touchController.update()
-
-        // Actualizare logică jucător (mișcare, animații)
         player.update()
 
-        // ✅ LOGICĂ INTERACȚIUNE ȘI OBIECTIV (Buton Albastru)
-        if (refLink.touchController.isInteractJustPressed) {
+        if (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             var interactedWithSign = false
 
-            // Verificăm dacă suntem lângă un semn de lemn pentru a-l citi
             for (entity in entities) {
                 if (entity is DecorativeObject && entity.isInteractable) {
-                    // Verificăm proximitatea (ex: 100 pixeli distanță)
                     val dist = com.badlogic.gdx.math.Vector2.dst(player.x, player.y, entity.x, entity.y)
                     if (dist < 100f) {
                         interactedWithSign = true
-                        val msg = entity.getDialogueMessage() // ✅ Acum referința este validă
+                        val msg = entity.getDialogueMessage()
                         if (woodSignMessage == null) {
                             woodSignMessage = msg
                         } else {
@@ -424,22 +421,18 @@ class GameState(
                 }
             }
 
-            // Dacă nu suntem lângă un semn și nu avem un mesaj deschis, afișăm/ascundem obiectivul
             if (!interactedWithSign && woodSignMessage == null) {
                 isObjectiveDisplayed = !isObjectiveDisplayed
             } else if (woodSignMessage != null && !interactedWithSign) {
-                // Închidem mesajul de pe semn dacă apăsăm butonul în timp ce mesajul e afișat
                 woodSignMessage = null
             }
         }
 
-        // Verificare stare de eșec
         if (player.health <= 0) {
             refLink.setState(GameOverState(refLink))
             return
         }
 
-        // ✅ LOGICĂ DE CAMERĂ (Zoom fix 0.9 + Clamping pe margini)
         val gameCamera = refLink.gameCamera
         gameCamera.position.x = player.x + player.width / 2
         gameCamera.position.y = player.y + player.height / 2
@@ -450,19 +443,18 @@ class GameState(
         val effectiveViewportWidth = gameCamera.viewportWidth * currentZoom
         val effectiveViewportHeight = gameCamera.viewportHeight * currentZoom
 
-        gameCamera.position.x = com.badlogic.gdx.math.MathUtils.clamp(
+        gameCamera.position.x = MathUtils.clamp(
             gameCamera.position.x,
             effectiveViewportWidth / 2f,
             mapWidthPixels - effectiveViewportWidth / 2f
         )
-        gameCamera.position.y = com.badlogic.gdx.math.MathUtils.clamp(
+        gameCamera.position.y = MathUtils.clamp(
             gameCamera.position.y,
             effectiveViewportHeight / 2f,
             mapHeightPixels - effectiveViewportHeight / 2f
         )
         gameCamera.update()
 
-        // Actualizare logică specifică nivelului și entităților
         updateLevelSpecificLogic(delta)
         updateEntities(delta)
     }
@@ -649,8 +641,6 @@ class GameState(
         }
     }
 
-    // ==================== USI SI INTERACTIUNI ====================
-
     private fun checkAndOpenDoor() {
         val playerTileX = getPlayerTileX()
         val playerTileY = getPlayerTileY()
@@ -822,15 +812,13 @@ class GameState(
     fun getEntities() = entities
     fun getCurrentLevel(): Int = currentLevelIndex
 
-    // ==================== RENDERING ====================
+    // ==================== RENDERING (UI Optimizat HD) ====================
 
     override fun render(batch: SpriteBatch) {
         val camera = refLink.gameCamera
 
-        // 1. Hartă
         currentMap.render(camera)
 
-        // 2. Entități
         val allEntities = entities.toMutableList()
         allEntities.add(player)
         finalBoss?.let { if (it.health > 0) allEntities.add(it) }
@@ -842,9 +830,6 @@ class GameState(
             entity.render(batch)
         }
         batch.end()
-
-        // 3. Ceață
-        //fogOfWar?.render(batch, camera) // Decomentează dacă ai FogOfWar funcțional
 
         // 4. UI
         renderUI(batch)
@@ -860,47 +845,50 @@ class GameState(
 
         batch.begin()
 
-        collectionMessage?.let { msg ->
-            font.color = Color.WHITE
-            val layout = GlyphLayout(font, msg)
-            val x = (Gdx.graphics.width - layout.width) / 2
-            val y = Gdx.graphics.height / 2f
-            font.draw(batch, msg, x, y)
-        }
+        font.data.setScale(1f)
 
+        // --- 1. TEXT OBIECTIV (Sus) ---
         if (isObjectiveDisplayed) {
             font.color = Color.YELLOW
+
             val objectiveText = "Obiectiv: $currentObjective"
             val layout = GlyphLayout(font, objectiveText)
             val x = (Gdx.graphics.width - layout.width) / 2
-            font.draw(batch, objectiveText, x, 30f)
+
+            font.draw(batch, objectiveText, x, 80f)
         }
 
-        batch.end()
+        // --- 2. MESAJE TEMPORARE ---
+        collectionMessage?.let { msg ->
+            val layout = GlyphLayout(font, msg)
+            val x = (Gdx.graphics.width - layout.width) / 2
+            val y = Gdx.graphics.height / 2f + 100f
 
+            font.color = Color.CYAN
+            font.draw(batch, msg, x, y)
+        }
+
+        // --- 3. MESAJ PANOU LEMN ---
         woodSignMessage?.let { msg ->
-            // Desenare fundal mesaj
+            batch.end()
+            // --- MODIFICAT AICI: Folosim GL20.GL_BLEND corect ---
+            Gdx.gl.glEnable(GL20.GL_BLEND)
             shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
             shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)
-            shapeRenderer.rect(Gdx.graphics.width / 2f - 250f, Gdx.graphics.height / 2f - 75f, 500f, 150f)
+            shapeRenderer.rect(Gdx.graphics.width / 2f - 300f, Gdx.graphics.height / 2f - 75f, 600f, 150f)
             shapeRenderer.end()
-
-            // Desenare text mesaj
             batch.begin()
-            font.color = Color.WHITE
+
             val layout = GlyphLayout(font, msg)
             val x = (Gdx.graphics.width - layout.width) / 2
-            val y = Gdx.graphics.height / 2f
-            font.draw(batch, msg, x, y)
+            val y = Gdx.graphics.height / 2f + layout.height / 2
 
-            val instruction = "Apasă 'E' pentru a închide."
-            val instrLayout = GlyphLayout(font, instruction)
-            val instrX = (Gdx.graphics.width - instrLayout.width) / 2
-            font.draw(batch, instruction, instrX, y - 50f)
-            batch.end()
+            font.color = Color.WHITE
+            font.draw(batch, msg, x, y)
         }
 
+        batch.end()
         drawMiniMap(batch)
     }
 

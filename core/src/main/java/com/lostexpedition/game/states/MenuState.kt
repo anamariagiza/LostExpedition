@@ -19,6 +19,7 @@ class MenuState(refLink: RefLinks) : State(refLink) {
         "NEW GAME",
         "LOAD GAME",
         "SETTINGS",
+        "ABOUT",  // Am adăugat și meniul About
         "EXIT"
     )
 
@@ -47,7 +48,7 @@ class MenuState(refLink: RefLinks) : State(refLink) {
     }
 
     private fun handleInput() {
-        // Keyboard navigation
+        // Navigare tastatură
         if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
             selectedOption = (selectedOption - 1 + menuOptions.size) % menuOptions.size
         }
@@ -55,7 +56,7 @@ class MenuState(refLink: RefLinks) : State(refLink) {
             selectedOption = (selectedOption + 1) % menuOptions.size
         }
 
-        // Touch/Mouse selection
+        // Selecție Touch/Mouse
         if (Gdx.input.justTouched()) {
             val touchX = Gdx.input.x.toFloat()
             val touchY = Gdx.graphics.height - Gdx.input.y.toFloat()
@@ -68,7 +69,7 @@ class MenuState(refLink: RefLinks) : State(refLink) {
             }
         }
 
-        // Enter key
+        // Tasta Enter
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
             handleSelection()
         }
@@ -79,32 +80,38 @@ class MenuState(refLink: RefLinks) : State(refLink) {
             0 -> startNewGame()
             1 -> loadGame()
             2 -> openSettings()
-            3 -> exitGame()
+            3 -> openAbout()
+            4 -> exitGame()
         }
     }
 
     private fun startNewGame() {
-        println("Starting new game...")
-        refLink.setState(GameState(refLink, 0))
+        // Pornim jocul de la zero (isLoadingFromSave = false)
+        refLink.setState(GameState(refLink, 0, false))
     }
 
     private fun loadGame() {
-        println("Loading game...")
-        val savedState = refLink.getPersistedGameState()
-        if (savedState != null) {
-            refLink.setState(savedState)
+        // Verificăm dacă există o salvare înainte să încercăm încărcarea
+        val savedData = refLink.databaseManager.loadGameData()
+        if (savedData.isNotEmpty()) {
+            println("Loading game...")
+            // Pornim jocul cu flag-ul de încărcare (isLoadingFromSave = true)
+            refLink.setState(GameState(refLink, 0, true))
         } else {
-            println("No saved game found")
+            println("No saved game found!")
+            // Aici ai putea adăuga un feedback vizual (ex: sunet de eroare sau text roșu)
         }
     }
 
     private fun openSettings() {
-        println("Opening settings...")
-        // TODO: Implement SettingsState
+        refLink.setState(SettingsState(refLink))
+    }
+
+    private fun openAbout() {
+        refLink.setState(AboutState(refLink))
     }
 
     private fun exitGame() {
-        println("Exiting game...")
         Gdx.app.exit()
     }
 
@@ -112,35 +119,32 @@ class MenuState(refLink: RefLinks) : State(refLink) {
         val width = Gdx.graphics.width.toFloat()
         val height = Gdx.graphics.height.toFloat()
 
-        // Clear screen
+        // Curățare ecran
         Gdx.gl.glClearColor(0.1f, 0.1f, 0.2f, 1f)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
 
-        // ===== START BATCH - Draw all sprites =====
+        // ===== DESENARE FUNDAL =====
         batch.begin()
-
-        // Background
         Assets.backgroundMenu?.let {
             batch.draw(it, 0f, 0f, width, height)
         }
 
-        // Title
+        // Titlu
         val title = "LOST EXPEDITION"
         val titleLayout = GlyphLayout(titleFont, title)
         val titleX = (width - titleLayout.width) / 2f
         titleFont.draw(batch, title, titleX, height - 100f)
-
         batch.end()
-        // ===== END BATCH =====
 
-        // ===== SHAPE RENDERER - Draw buttons =====
+        // ===== DESENARE BUTOANE (Forme) =====
         val buttonWidth = 400f
         val buttonHeight = 60f
-        val startY = height / 2f + 100f
-        val gap = 70f
+        val startY = height / 2f + 50f
+        val gap = 80f
 
         buttonBounds.clear()
 
+        Gdx.gl.glEnable(GL20.GL_BLEND)
         shapeRenderer.projectionMatrix = batch.projectionMatrix
 
         for (i in menuOptions.indices) {
@@ -151,10 +155,10 @@ class MenuState(refLink: RefLinks) : State(refLink) {
 
             val isSelected = (i == selectedOption)
 
-            // Draw button background
+            // Fundal buton
             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
             if (isSelected) {
-                val pulse = (sin(System.currentTimeMillis() * 0.007) * 7).toFloat()
+                val pulse = (sin(System.currentTimeMillis() * 0.007) * 5).toFloat()
                 shapeRenderer.color = selectedColor
                 shapeRenderer.rect(
                     x - pulse,
@@ -168,16 +172,15 @@ class MenuState(refLink: RefLinks) : State(refLink) {
             }
             shapeRenderer.end()
 
-            // Draw button border
+            // Contur buton
             shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
             shapeRenderer.color = Color(1f, 0.84f, 0f, 1f)
             shapeRenderer.rect(x, y, buttonWidth, buttonHeight)
             shapeRenderer.end()
         }
 
-        // ===== START BATCH AGAIN - Draw button text =====
+        // ===== DESENARE TEXT BUTOANE =====
         batch.begin()
-
         for (i in menuOptions.indices) {
             val x = (width - buttonWidth) / 2f
             val y = startY - i * gap
@@ -189,9 +192,7 @@ class MenuState(refLink: RefLinks) : State(refLink) {
             val textY = y + (buttonHeight + textLayout.height) / 2f
             buttonFont.draw(batch, menuOptions[i], textX, textY)
         }
-
         batch.end()
-        // ===== END BATCH =====
     }
 
     override fun dispose() {

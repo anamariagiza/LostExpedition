@@ -66,6 +66,7 @@ class Trap(
 
         image?.let {
             if (active) {
+                // Efect de clipire (semi-transparent)
                 val alpha = if (kotlin.math.sin(blinkTime.toDouble() * blinkSpeed).toFloat() > 0) 1f else 0.3f
                 val oldColor = batch.color.cpy()
                 batch.setColor(1f, 1f, 1f, alpha)
@@ -91,7 +92,7 @@ class TrapTrigger(
     }
 
     override fun render(batch: SpriteBatch) {
-        // Invisible trigger
+        // Trigger invizibil, nu se desenează
     }
 }
 
@@ -103,13 +104,11 @@ class DecorativeObject(
     width: Int,
     height: Int,
     private val image: TextureRegion?,
-    // ✅ REPARAT: Adăugat isInteractable pentru acces din GameState
     val isInteractable: Boolean = false
 ) : Entity(refLink, x, y, width, height) {
 
     private var dialogueMessage: String? = null
 
-    // ✅ REPARAT: Metode pentru gestionarea mesajelor
     fun setDialogueMessage(message: String) {
         dialogueMessage = message
     }
@@ -119,13 +118,13 @@ class DecorativeObject(
     }
 
     override fun update() {
-        // Logica de interacțiune a fost mutată în GameState.update()
-        // pentru a centraliza controlul TouchController și prioritățile de UI.
+        // Logică mutată în GameState
     }
 
     override fun render(batch: SpriteBatch) {
         if (!isOnScreen()) return
 
+        // Folosim variabila 'image' definită în constructor
         image?.let {
             batch.draw(it, x, y, width.toFloat(), height.toFloat())
         }
