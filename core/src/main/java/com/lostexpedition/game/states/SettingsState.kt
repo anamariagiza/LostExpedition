@@ -1,240 +1,178 @@
 package com.lostexpedition.game.states
 
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Rectangle
-import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.utils.RefLinks
-import kotlin.math.sin
+import com.lostexpedition.game.utils.SettingsManager
 
 class SettingsState(refLink: RefLinks) : State(refLink) {
 
-    private val menuOptions = arrayOf(
-        "SOUND: ON",
-        "MUSIC: ON",
-        "VOLUME: 100%",
-        "BACK"
-    )
+    private val font = BitmapFont().apply {
+        data.setScale(2.5f)
+    }
 
-    private var selectedOption = 0
-    private val buttonBounds = mutableListOf<Rectangle>()
-
-    private var soundEnabled = true
-    private var musicEnabled = true
-    private var volume = 100
+    private val titleFont = BitmapFont().apply {
+        data.setScale(3.5f)
+        color = Color.GOLD
+    }
 
     private val shapeRenderer = ShapeRenderer()
-    private val titleFont = BitmapFont().apply {
-        data.setScale(2f)
-        color = Color(1f, 0.84f, 0f, 1f)
-    }
-    private val buttonFont = BitmapFont().apply {
-        data.setScale(1.3f)
-        color = Color.WHITE
-    }
 
-    private val selectedColor = Color(0.63f, 0.32f, 0.18f, 1f)
-    private val unselectedColor = Color(1f, 1f, 1f, 0.7f)
-
-    private var lastTouchTime = 0L
-    private val touchCooldown = 200L
+    // Bounds pentru butoane (le calculăm în init)
+    private val musicBtnBounds = Rectangle()
+    private val soundBtnBounds = Rectangle()
+    private val volumeDownBounds = Rectangle()
+    private val volumeUpBounds = Rectangle()
+    private val backBtnBounds = Rectangle()
 
     init {
         println("SettingsState initialized")
-        loadSettings()
-        calculateButtonBounds()
+        calculateLayout()
     }
 
-    private fun loadSettings() {
-        // Acum returnează direct obiectul SettingsData (nu o listă)
-        val settings = refLink.databaseManager.loadSettingsData()
-        soundEnabled = settings.soundEnabled
-        musicEnabled = settings.musicEnabled
-        volume = settings.volume
-        updateMenuOptions()
-    }
+    private fun calculateLayout() {
+        val w = Gdx.graphics.width.toFloat()
+        val h = Gdx.graphics.height.toFloat()
+        val centerX = w / 2
+        val startY = h * 0.7f
+        val gap = 120f
 
-    private fun updateMenuOptions() {
-        menuOptions[0] = "SOUND: ${if (soundEnabled) "ON" else "OFF"}"
-        menuOptions[1] = "MUSIC: ${if (musicEnabled) "ON" else "OFF"}"
-        menuOptions[2] = "VOLUME: $volume%"
+        // 1. Music Toggle (Buton lung pe centru)
+        musicBtnBounds.set(centerX - 200f, startY, 400f, 80f)
+
+        // 2. Sound Toggle
+        soundBtnBounds.set(centerX - 200f, startY - gap, 400f, 80f)
+
+        // 3. Volume Controls (-  100%  +)
+        volumeDownBounds.set(centerX - 200f, startY - gap * 2, 80f, 80f)
+        volumeUpBounds.set(centerX + 120f, startY - gap * 2, 80f, 80f)
+
+        // 4. Back Button (Jos de tot)
+        backBtnBounds.set(centerX - 150f, 100f, 300f, 80f)
     }
 
     override fun update(delta: Float) {
         handleInput()
     }
 
-    override fun render(batch: SpriteBatch) {
-        val width = Gdx.graphics.width.toFloat()
-        val height = Gdx.graphics.height.toFloat()
-
-        // Background
-        batch.begin()
-        Assets.backgroundMenu?.let {
-            batch.draw(it, 0f, 0f, width, height)
-        }
-        batch.end()
-
-        // Overlay
-        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-        shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)
-        shapeRenderer.rect(0f, 0f, width, height)
-        shapeRenderer.end()
-
-        // Title
-        batch.begin()
-        val title = "SETĂRI"
-        val titleLayout = titleFont.draw(batch, title, 0f, 0f)
-        val titleX = (width - titleLayout.width) / 2f
-        titleFont.draw(batch, title, titleX, height - 100f)
-        batch.end()
-
-        // Menu buttons
-        val buttonWidth = 400f
-        val buttonHeight = 60f
-        val startY = height / 2f + 100f
-        val gap = 70f
-
-        buttonBounds.clear()
-
-        for (i in menuOptions.indices) {
-            val x = (width - buttonWidth) / 2f
-            val y = startY - i * gap
-
-            buttonBounds.add(Rectangle(x, y, buttonWidth, buttonHeight))
-
-            val isSelected = (i == selectedOption)
-
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-            if (isSelected) {
-                val pulse = (sin(System.currentTimeMillis() * 0.007) * 7).toFloat()
-                shapeRenderer.color = selectedColor
-                shapeRenderer.rect(
-                    x - pulse,
-                    y - pulse,
-                    buttonWidth + 2 * pulse,
-                    buttonHeight + 2 * pulse
-                )
-            } else {
-                shapeRenderer.color = unselectedColor
-                shapeRenderer.rect(x, y, buttonWidth, buttonHeight)
-            }
-            shapeRenderer.end()
-
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
-            shapeRenderer.color = Color(1f, 0.84f, 0f, 1f)
-            shapeRenderer.rect(x, y, buttonWidth, buttonHeight)
-            shapeRenderer.end()
-
-            batch.begin()
-            buttonFont.color = if (isSelected) Color.WHITE else Color(0.69f, 0.57f, 0f, 1f)
-            val textLayout = buttonFont.draw(batch, menuOptions[i], 0f, 0f)
-            val textX = x + (buttonWidth - textLayout.width) / 2f
-            val textY = y + (buttonHeight + textLayout.height) / 2f
-            buttonFont.draw(batch, menuOptions[i], textX, textY)
-            batch.end()
-        }
-    }
-
     private fun handleInput() {
-        if (Gdx.input.justTouched() &&
-            System.currentTimeMillis() - lastTouchTime > touchCooldown) {
-
-            lastTouchTime = System.currentTimeMillis()
+        if (Gdx.input.justTouched()) {
             val touchX = Gdx.input.x.toFloat()
             val touchY = Gdx.graphics.height - Gdx.input.y.toFloat()
 
-            buttonBounds.forEachIndexed { index, rect ->
-                if (rect.contains(touchX, touchY)) {
-                    selectedOption = index
-                    executeSelectedOption()
-                }
+            // Toggle Music
+            if (musicBtnBounds.contains(touchX, touchY)) {
+                SettingsManager.isMusicEnabled = !SettingsManager.isMusicEnabled
             }
-        }
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
-            selectedOption--
-            if (selectedOption < 0) selectedOption = menuOptions.size - 1
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
-            selectedOption++
-            if (selectedOption >= menuOptions.size) selectedOption = 0
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-            executeSelectedOption()
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            saveAndReturn()
-        }
-
-        if (selectedOption == 2) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT)) {
-                volume = (volume - 10).coerceAtLeast(0)
-                updateMenuOptions()
+            // Toggle Sound
+            else if (soundBtnBounds.contains(touchX, touchY)) {
+                SettingsManager.isSoundEnabled = !SettingsManager.isSoundEnabled
             }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT)) {
-                volume = (volume + 10).coerceAtMost(100)
-                updateMenuOptions()
+
+            // Volume Down
+            else if (volumeDownBounds.contains(touchX, touchY)) {
+                SettingsManager.masterVolume -= 0.1f
+            }
+
+            // Volume Up
+            else if (volumeUpBounds.contains(touchX, touchY)) {
+                SettingsManager.masterVolume += 0.1f
+            }
+
+            // Back
+            else if (backBtnBounds.contains(touchX, touchY)) {
+                refLink.setState(MenuState(refLink))
             }
         }
     }
 
-    private fun executeSelectedOption() {
-        when (selectedOption) {
-            0 -> {
-                soundEnabled = !soundEnabled
-                updateMenuOptions()
-            }
-            1 -> {
-                musicEnabled = !musicEnabled
-                updateMenuOptions()
-            }
-            2 -> {
-                // Volumul se schimbă din taste stânga/dreapta sau poți adăuga logică touch
-                volume = (volume + 10)
-                if (volume > 100) volume = 0
-                updateMenuOptions()
-            }
-            3 -> {
-                saveAndReturn()
-            }
-        }
+    override fun render(batch: SpriteBatch) {
+        Gdx.gl.glClearColor(0.15f, 0.15f, 0.2f, 1f)
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
+
+        // Activăm blending pentru transparențe
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+
+        // --- 1. Desenăm Formele Butoanelor ---
+        shapeRenderer.projectionMatrix = batch.projectionMatrix
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+
+        // Music Btn (Verde=ON, Roșu=OFF)
+        shapeRenderer.color = if (SettingsManager.isMusicEnabled) Color(0f, 0.6f, 0f, 1f) else Color(0.6f, 0f, 0f, 1f)
+        shapeRenderer.rect(musicBtnBounds.x, musicBtnBounds.y, musicBtnBounds.width, musicBtnBounds.height)
+
+        // Sound Btn
+        shapeRenderer.color = if (SettingsManager.isSoundEnabled) Color(0f, 0.6f, 0f, 1f) else Color(0.6f, 0f, 0f, 1f)
+        shapeRenderer.rect(soundBtnBounds.x, soundBtnBounds.y, soundBtnBounds.width, soundBtnBounds.height)
+
+        // Volume Btn (- / +)
+        shapeRenderer.color = Color.DARK_GRAY
+        shapeRenderer.rect(volumeDownBounds.x, volumeDownBounds.y, volumeDownBounds.width, volumeDownBounds.height)
+        shapeRenderer.rect(volumeUpBounds.x, volumeUpBounds.y, volumeUpBounds.width, volumeUpBounds.height)
+
+        // Back Btn (Albastru)
+        shapeRenderer.color = Color(0.2f, 0.2f, 0.8f, 1f)
+        shapeRenderer.rect(backBtnBounds.x, backBtnBounds.y, backBtnBounds.width, backBtnBounds.height)
+
+        shapeRenderer.end()
+
+        // --- 2. Desenăm Contururile ---
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+        shapeRenderer.color = Color.WHITE
+        shapeRenderer.rect(musicBtnBounds.x, musicBtnBounds.y, musicBtnBounds.width, musicBtnBounds.height)
+        shapeRenderer.rect(soundBtnBounds.x, soundBtnBounds.y, soundBtnBounds.width, soundBtnBounds.height)
+        shapeRenderer.rect(volumeDownBounds.x, volumeDownBounds.y, volumeDownBounds.width, volumeDownBounds.height)
+        shapeRenderer.rect(volumeUpBounds.x, volumeUpBounds.y, volumeUpBounds.width, volumeUpBounds.height)
+        shapeRenderer.rect(backBtnBounds.x, backBtnBounds.y, backBtnBounds.width, backBtnBounds.height)
+        shapeRenderer.end()
+
+        // --- 3. Desenăm Textul ---
+        batch.begin()
+
+        // Titlu
+        val title = "SETARI"
+        val titleLayout = GlyphLayout(titleFont, title)
+        titleFont.draw(batch, title, (Gdx.graphics.width - titleLayout.width) / 2, Gdx.graphics.height - 50f)
+
+        // Text Butoane
+        font.color = Color.WHITE
+
+        drawCenteredText(batch, "MUZICA: ${if (SettingsManager.isMusicEnabled) "ON" else "OFF"}", musicBtnBounds)
+        drawCenteredText(batch, "SUNET: ${if (SettingsManager.isSoundEnabled) "ON" else "OFF"}", soundBtnBounds)
+
+        drawCenteredText(batch, "-", volumeDownBounds)
+        drawCenteredText(batch, "+", volumeUpBounds)
+
+        // Text Volum (între minus și plus)
+        val volPercent = (SettingsManager.masterVolume * 100).toInt()
+        val volText = "$volPercent%"
+        val volLayout = GlyphLayout(font, volText)
+        val volX = volumeDownBounds.x + volumeDownBounds.width + (volumeUpBounds.x - (volumeDownBounds.x + volumeDownBounds.width) - volLayout.width) / 2
+        val volY = volumeDownBounds.y + (volumeDownBounds.height + volLayout.height) / 2
+        font.draw(batch, volText, volX, volY)
+
+        drawCenteredText(batch, "INAPOI", backBtnBounds)
+
+        batch.end()
     }
 
-    private fun saveAndReturn() {
-        // Acum apelăm metoda corectă cu tipurile corecte (Boolean, Boolean, Int)
-        refLink.databaseManager.saveSettingsData(soundEnabled, musicEnabled, volume)
-        println("Settings saved")
-        refLink.setState(MenuState(refLink))
-    }
-
-    private fun calculateButtonBounds() {
-        buttonBounds.clear()
-        val width = Gdx.graphics.width.toFloat()
-        val height = Gdx.graphics.height.toFloat()
-        val buttonWidth = 400f
-        val buttonHeight = 60f
-        val startY = height / 2f + 100f
-        val gap = 70f
-
-        for (i in menuOptions.indices) {
-            val x = (width - buttonWidth) / 2f
-            val y = startY - i * gap
-            buttonBounds.add(Rectangle(x, y, buttonWidth, buttonHeight))
-        }
+    private fun drawCenteredText(batch: SpriteBatch, text: String, rect: Rectangle) {
+        val layout = GlyphLayout(font, text)
+        val x = rect.x + (rect.width - layout.width) / 2
+        val y = rect.y + (rect.height + layout.height) / 2
+        font.draw(batch, text, x, y)
     }
 
     override fun dispose() {
-        shapeRenderer.dispose()
+        font.dispose()
         titleFont.dispose()
-        buttonFont.dispose()
+        shapeRenderer.dispose()
     }
 }
