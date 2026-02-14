@@ -695,10 +695,20 @@ class GameState(
         if (doorIndex in hasDoorKeys.indices && hasDoorKeys[doorIndex]) {
             val doorCoords = puzzleDoorPositions[doorIndex]
             if (doorCoords.size == 8) {
-                changeTileGidJava(doorCoords[0], doorCoords[1], 0, 1)
-                changeTileGidJava(doorCoords[2], doorCoords[3], 0, 1)
-                changeTileGidJava(doorCoords[4], doorCoords[5], 0, 1)
-                changeTileGidJava(doorCoords[6], doorCoords[7], 0, 1)
+                // AICI TREBUIE SĂ PUI GID-URILE PENTRU UȘA DESCHISĂ!
+                // Caută în Tiled care sunt ID-urile pentru ușa deschisă (stânga-sus, dreapta-sus etc.)
+                // Notă: Pune ID-ul din Tiled + 1 (dacă în Tiled scrie 73, aici pui 74)
+
+                val openTopLeft = 60     // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (stânga sus)
+                val openTopRight = 61    // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (dreapta sus)
+                val openBotLeft = 92    // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (stânga jos)
+                val openBotRight = 93   // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (dreapta jos)
+
+                // Înlocuim cele 4 bucăți ale ușii închise cu cele ale ușii deschise
+                changeTileGidJava(doorCoords[0], doorCoords[1], openTopLeft, 1)
+                changeTileGidJava(doorCoords[2], doorCoords[3], openTopRight, 1)
+                changeTileGidJava(doorCoords[4], doorCoords[5], openBotLeft, 1)
+                changeTileGidJava(doorCoords[6], doorCoords[7], openBotRight, 1)
 
                 hasDoorKeys[doorIndex] = false
                 collectionMessage = "Ușa s-a deschis!"
@@ -745,17 +755,41 @@ class GameState(
     }
 
     private fun passToLevel2() {
-        if (currentLevelIndex < levelPaths.size - 1) {
-            refLink.setState(GameState(refLink, currentLevelIndex + 1))
-        } else {
-            refLink.setState(GameOverState(refLink))
-        }
+        println("Trecere la Nivelul 2!")
+
+        // 1. Memorăm viața (matricea de chei se păstrează automat în clasă)
+        val currentHealth = player.health
+
+        // 2. Încărcăm harta nouă fără a distruge GameState-ul curent
+        currentLevelIndex = 1
+        initLevelInternal(currentLevelIndex, false)
+
+        // 3. Restaurăm viața
+        player.health = currentHealth
+
+        // 4. Afișăm un mesaj de succes
+        collectionMessage = "Nivelul 2: Labirintul"
+        collectionMessageTime = System.currentTimeMillis()
+
+        // 5. Checkpoint: Salvăm jocul automat (inclusiv cheia)
+        saveCurrentState()
     }
 
     private fun passToLevel3() {
         println("Trecere la Nivelul 3!")
+
+        // Aceeași logică sigură și pentru ultimul nivel
+        val currentHealth = player.health
+
         currentLevelIndex = 2
         initLevelInternal(currentLevelIndex, false)
+
+        player.health = currentHealth
+
+        collectionMessage = "Nivelul 3: Bătălia Finală"
+        collectionMessageTime = System.currentTimeMillis()
+
+        saveCurrentState()
     }
 
     fun isPuzzleSolved(puzzleId: Int): Boolean {

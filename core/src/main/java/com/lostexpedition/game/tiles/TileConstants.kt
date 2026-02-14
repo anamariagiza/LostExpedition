@@ -16,7 +16,7 @@ object TileConstants {
     const val TILE_HEIGHT = 48
 
     // ==================== GID-uri SOLIDE (Exemple de verificat în Tiled) ====================
-    const val GRASS_TILE_SOLID = 82
+    const val GRASS_TILE_SOLID = 81 //modificat pentru a testa mai usor, normal e 82
     const val WALL_TILE_SOLID = 33
     const val WALL_LEVEL3 = 64
 

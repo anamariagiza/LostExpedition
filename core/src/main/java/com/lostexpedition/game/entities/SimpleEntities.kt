@@ -54,7 +54,9 @@ class Animal(
 
         val currentFrame = animation?.getKeyFrame(stateTime, true)
         currentFrame?.let {
-            val flipX = velocityX < 0
+            // INVERSAT: Animalele se uită la stânga default. Le dăm flip DOAR când merg spre dreapta.
+            val flipX = velocityX > 0f
+
             batch.draw(
                 it,
                 if (flipX) x + width else x,

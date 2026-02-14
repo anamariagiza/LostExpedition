@@ -374,7 +374,7 @@ object Assets {
 
     private fun loadNPCAssets() {
         // NPC (Old Man) - Idle animation
-        val npcIdleSheet = loadTexture("textures/old_man.png")
+        val npcIdleSheet = loadTexture("textures/objects/old_man.png")
         if (npcIdleSheet != null) {
             npcIdle = loadAnimationFromRow(npcIdleSheet, NPC_FRAME_WIDTH, NPC_FRAME_HEIGHT, 0, 6, 0.2f)
         }

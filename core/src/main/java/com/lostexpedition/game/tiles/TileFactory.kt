@@ -49,51 +49,48 @@ object TileFactory {
      * @return A new Tile instance
      */
     private fun createTile(gid: Int, levelIndex: Int): Tile {
-        // Empty tile
+        // Celulă goală
         if (gid == 0) {
             return Tile(0, false)
         }
 
-        // Rock tiles (always solid)
+        // ==========================================
+        // REGULA TA STRICTĂ PENTRU NIVELUL 2 (Index 1)
+        // ==========================================
+        if (levelIndex == 1) {
+            // 1. Ușile închise sunt solide
+            if (gid in TileConstants.DOOR_CLOSED_GIDS) {
+                return DoorTile(gid, isOpen = false, isTop = isTopDoorGid(gid))
+            }
+            // 2. Dala cu ID-ul 33 este solidă (Perete)
+            if (gid == 33) {
+                return WallTile(gid)
+            }
+            // 3. ABSOLUT ORICE ALTA DALĂ (Scări, podea, culoar) = LIBERĂ!
+            return Tile(gid, false)
+        }
+
+        // ==========================================
+        // REGULI PENTRU NIVELUL 1 (Index 0) și NIVELUL 3 (Index 2)
+        // ==========================================
+        if (gid in TileConstants.DOOR_OPEN_GIDS_L3) {
+            return DoorTile(gid, isOpen = true, isTop = isTopDoorGid(gid))
+        }
+        if (gid in TileConstants.DOOR_CLOSED_GIDS || gid in TileConstants.DOOR_FINAL_CLOSED_GIDS) {
+            return DoorTile(gid, isOpen = false, isTop = isTopDoorGid(gid))
+        }
         if (gid in TileConstants.ROCK_GIDS) {
             return RockTile(gid)
         }
-
-        // Closed door tiles (solid)
-        if (gid in TileConstants.DOOR_CLOSED_GIDS) {
-            val isTopDoor = isTopDoorGid(gid)
-            return DoorTile(gid, isOpen = false, isTop = isTopDoor)
-        }
-
-        // Open door tiles (non-solid)
-        if (gid in TileConstants.DOOR_OPEN_GIDS_L3) {
-            val isTopDoor = isTopDoorGid(gid)
-            return DoorTile(gid, isOpen = true, isTop = isTopDoor)
-        }
-
-        // Final closed doors (Level 3)
-        if (gid in TileConstants.DOOR_FINAL_CLOSED_GIDS) {
-            val isTopDoor = isTopDoorGid(gid)
-            return DoorTile(gid, isOpen = false, isTop = isTopDoor)
-        }
-
-        // Wall tiles
         if (gid == TileConstants.WALL_TILE_SOLID || gid == TileConstants.WALL_LEVEL3) {
             return WallTile(gid)
         }
-
-        // Grass tiles (solid in Level 1)
         if (gid == TileConstants.GRASS_TILE_SOLID) {
-            val solid = levelIndex == 0 // Solid only in Level 1
+            val solid = levelIndex == 0
             return GrassTile(gid, solid)
         }
 
-        // Trap tile GIDs (if defined)
-        if (isTrapTileGid(gid)) {
-            return TrapTile(gid)
-        }
-
-        // Default: non-solid tile
+        // Default
         return Tile(gid, false)
     }
 
@@ -124,10 +121,6 @@ object TileFactory {
 
     /**
      * Creates a grass tile
-     *
-     * @param gid The tile GID
-     * @param solid Whether the grass is solid
-     * @return A GrassTile instance
      */
     fun createGrassTile(gid: Int, solid: Boolean = false): GrassTile {
         return GrassTile(gid, solid)
@@ -135,9 +128,6 @@ object TileFactory {
 
     /**
      * Creates a wall tile
-     *
-     * @param gid The tile GID
-     * @return A WallTile instance
      */
     fun createWallTile(gid: Int): WallTile {
         return WallTile(gid)
@@ -145,9 +135,6 @@ object TileFactory {
 
     /**
      * Creates a rock tile
-     *
-     * @param gid The tile GID
-     * @return A RockTile instance
      */
     fun createRockTile(gid: Int): RockTile {
         return RockTile(gid)
@@ -155,11 +142,6 @@ object TileFactory {
 
     /**
      * Creates a door tile
-     *
-     * @param gid The tile GID
-     * @param isOpen Whether the door is open
-     * @param isTop Whether this is a top door tile
-     * @return A DoorTile instance
      */
     fun createDoorTile(gid: Int, isOpen: Boolean, isTop: Boolean = false): DoorTile {
         return DoorTile(gid, isOpen, isTop)
@@ -167,10 +149,6 @@ object TileFactory {
 
     /**
      * Creates a trap tile
-     *
-     * @param gid The tile GID
-     * @param damage The damage dealt by this trap
-     * @return A TrapTile instance
      */
     fun createTrapTile(gid: Int, damage: Int = 10): TrapTile {
         return TrapTile(gid, damage)

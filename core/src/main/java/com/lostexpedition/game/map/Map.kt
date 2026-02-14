@@ -20,7 +20,6 @@ import com.lostexpedition.game.utils.RefLinks
  * @param refLink Reference to game utilities
  * @param path Path to the TMX map file
  * @param levelIndex The level index (0, 1, 2) for level-specific collision rules
- * @author LostExpedition Team
  */
 class Map(private val refLink: RefLinks, path: String, private val levelIndex: Int) {
 
@@ -32,146 +31,120 @@ class Map(private val refLink: RefLinks, path: String, private val levelIndex: I
 
     init {
         DebugLogger.log("Map", "Loaded map: $path (${width}x${height} tiles, level $levelIndex)")
-        // Clear tile cache when loading new map
         TileFactory.clearCache()
     }
 
-    /**
-     * Updates the map state
-     */
-    fun update() {
-        // Map update logic (if needed)
-    }
+    fun update() { }
 
-    /**
-     * Renders the map
-     * @param camera The camera to render with
-     */
     fun render(camera: OrthographicCamera) {
         renderer.setView(camera)
         renderer.render()
     }
 
     /**
-     * Gets a tile at the specified coordinates using TileFactory
-     *
-     * @param x Tile X coordinate
-     * @param y Tile Y coordinate
-     * @return The Tile at that position
+     * NOU: Parcurgem toate layerele hărții. Dacă GĂSIM un element SOLID pe orice layer,
+     * atunci blocăm trecerea. (Asta rezolvă problema ușilor de pe layer-ul 3).
      */
     fun getTile(x: Int, y: Int): Tile {
+        // Dacă ieșim de pe hartă, ne lovim de un perete
         if (x < 0 || x >= width || y < 0 || y >= height) {
-            return TileFactory.createWallTile(TileConstants.WALL_TILE_SOLID)
+            return Tile(33, true)
         }
 
-        val layer = tiledMap.layers[0] as TiledMapTileLayer
-        val cell = layer.getCell(x, y)
-        val gid = cell?.tile?.id ?: 0
+        var finalIsSolid = false
+        var topGid = 0
 
-        // Use TileFactory for efficient tile creation with caching
-        return TileFactory.getTile(gid, levelIndex)
+        // Citim straturile de la cel mai de jos (0) la cel mai de sus
+        for (layer in tiledMap.layers) {
+            if (layer is TiledMapTileLayer) {
+                val cell = layer.getCell(x, y)
+                if (cell != null && cell.tile != null && cell.tile.id != 0) {
+                    topGid = cell.tile.id
+
+                    // Dala desenată ultima (deasupra) DICTEAZĂ REGULA!
+                    // Astfel, dacă scara e peste perete, isSolid devine FALSE.
+                    finalIsSolid = TileFactory.getTile(topGid, levelIndex).isSolid
+                }
+            }
+        }
+
+        if (topGid == 0) return Tile(0, false)
+        return Tile(topGid, finalIsSolid)
     }
 
-    /**
-     * Checks if a tile at the given coordinates is solid
-     *
-     * @param x Tile X coordinate
-     * @param y Tile Y coordinate
-     * @return True if the tile is solid
-     */
     fun isTileSolid(x: Int, y: Int): Boolean {
         return getTile(x, y).isSolid
     }
 
-    /**
-     * Checks if a tile is a trap tile
-     *
-     * @param x Tile X coordinate
-     * @param y Tile Y coordinate
-     * @return True if the tile is a trap
-     */
     fun isTrapTile(x: Int, y: Int): Boolean {
         return getTile(x, y).isTrap()
     }
 
-    /**
-     * Checks if a tile is a door tile
-     *
-     * @param x Tile X coordinate
-     * @param y Tile Y coordinate
-     * @return True if the tile is a door
-     */
     fun isDoorTile(x: Int, y: Int): Boolean {
-        return getTile(x, y).isDoor()
+        // Căutăm explicit pe layer-ul de obiecte (care la tine se numește "objects" sau index 1/2)
+        // O variantă mai robustă:
+        for (layer in tiledMap.layers) {
+            if (layer is TiledMapTileLayer) {
+                val cell = layer.getCell(x, y)
+                if (cell != null && cell.tile != null) {
+                    val tile = TileFactory.getTile(cell.tile.id, levelIndex)
+                    if (tile.isDoor()) return true
+                }
+            }
+        }
+        return false
     }
 
-    /**
-     * Checks if a tile is a top door tile (for special collision detection)
-     *
-     * @param x Tile X coordinate
-     * @param y Tile Y coordinate
-     * @return True if the tile is a top door
-     */
     fun isTopDoorTile(x: Int, y: Int): Boolean {
         return getTile(x, y).isTopDoor()
     }
 
-    /**
-     * Gets the GID of a tile at the specified coordinates
-     *
-     * @param x Tile X coordinate
-     * @param y Tile Y coordinate
-     * @return The tile GID or 0 if out of bounds
-     */
     fun getTileGid(x: Int, y: Int): Int {
         if (x < 0 || x >= width || y < 0 || y >= height) return 0
 
-        val layer = tiledMap.layers[0] as TiledMapTileLayer
-        val cell = layer.getCell(x, y)
-        return cell?.tile?.id ?: 0
-    }
-
-    fun changeTileGid(x: Int, y: Int, newGid: Int, layerIndex: Int = 0) {
-        if (layerIndex >= tiledMap.layers.count) return
-
-        val layer = tiledMap.layers[layerIndex] as? TiledMapTileLayer ?: return
-        val cell = layer.getCell(x, y)
-
-        if (cell != null) {
-            val tile = tiledMap.tileSets.getTile(newGid)
-            if (tile != null) {
-                cell.tile = tile
+        // Returnăm cel mai "de sus" GID util
+        for (i in tiledMap.layers.count - 1 downTo 0) {
+            val layer = tiledMap.layers[i]
+            if (layer is TiledMapTileLayer) {
+                val cell = layer.getCell(x, y)
+                if (cell != null && cell.tile != null) {
+                    return cell.tile.id
+                }
             }
         }
+        return 0
     }
 
-    private fun isSolidInternal(gid: Int, x: Int, y: Int, levelIndex: Int): Boolean {
-        if (gid == 0) return false
+    fun changeTileGid(x: Int, y: Int, newGid: Int, layerIndex: Int = 1) { // 1 e de obicei objects layer
+        // AICI ESTE UN FIX IMPORTANT: Funcția originală deschidea ușa pe `layerIndex: 0`, adică pe iarbă!
+        // Ușa e pe layer-ul de deasupra (cum ați pus-o în Tiled). Așa că forțăm căutarea layer-ului corect.
 
-        // 1. Verificăm dacă este scară - DACĂ DA, returnăm FALSE (jucătorul poate trece/urca)
-        // Aceasta rezolvă problema blocajului la scări identificată în cerință.
-        // if (gid in TileConstants.STAIRS_GIDS) return false
+        var targetLayer: TiledMapTileLayer? = null
 
-        // 2. Verificăm obiectele universal solide (stânci)
-        if (gid in TileConstants.ROCK_GIDS) return true
-
-        // 3. Logica specifică pe nivel (sincronizată cu versiunea Desktop)
-        when (levelIndex) {
-            0 -> { // Level 1: Forest
-                if (gid == TileConstants.GRASS_TILE_SOLID) return true
-                if (gid == TileConstants.WALL_TILE_SOLID) return true
-            }
-            1 -> { // Level 2: Caves/Dungeon
-                if (gid == TileConstants.WALL_TILE_SOLID) return true
-                // Ușile închise sunt solide
-                if (gid in TileConstants.DOOR_CLOSED_GIDS) return true
-            }
-            2 -> { // Level 3: Final Arena
-                if (gid == TileConstants.WALL_LEVEL3) return true
-                if (gid in TileConstants.DOOR_FINAL_CLOSED_GIDS) return true
+        // Găsim layer-ul unde este ușa închisă momentan
+        for (layer in tiledMap.layers) {
+            if (layer is TiledMapTileLayer) {
+                val cell = layer.getCell(x, y)
+                if (cell != null && cell.tile != null && cell.tile.id != 0) {
+                    targetLayer = layer
+                }
             }
         }
-        return false
+
+        if (targetLayer != null) {
+            val cell = targetLayer.getCell(x, y)
+            if (cell != null) {
+                if (newGid == 0) {
+                    // Dacă GID=0 înseamnă că distrugem ușa, golim celula
+                    cell.tile = null
+                } else {
+                    val tile = tiledMap.tileSets.getTile(newGid)
+                    if (tile != null) {
+                        cell.tile = tile
+                    }
+                }
+            }
+        }
     }
 
     fun dispose() {

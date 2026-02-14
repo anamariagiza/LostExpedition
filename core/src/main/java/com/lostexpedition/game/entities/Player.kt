@@ -173,10 +173,15 @@ class Player(
         val map = refLink.map ?: return
         val TS = TileConstants.TILE_SIZE
 
-        val tileXLeft = ((newX) / TS).toInt()
-        val tileXRight = ((newX + width - 1) / TS).toInt()
-        val tileYBottom = (y / TS).toInt()
-        val tileYTop = ((y + height - 1) / TS).toInt()
+        // ✅ PADDING: Tăiem din coliziune pentru a încăpea perfect pe scări și uși
+        val padX = 18f     // Tăiem 18px din stânga și 18px din dreapta umerilor
+        val padYTop = 35f  // Tăiem 35px de sus (capul trece vizual peste pereți)
+        val padYBot = 5f   // Coliziunea se face doar la picioare
+
+        val tileXLeft = ((newX + padX) / TS).toInt()
+        val tileXRight = ((newX + width - padX - 1) / TS).toInt()
+        val tileYBottom = ((y + padYBot) / TS).toInt()
+        val tileYTop = ((y + height - padYTop - 1) / TS).toInt()
 
         var canMove = true
         for (tileY in tileYBottom..tileYTop) {
@@ -195,10 +200,15 @@ class Player(
         val map = refLink.map ?: return
         val TS = TileConstants.TILE_SIZE
 
-        val tileXLeft = (x / TS).toInt()
-        val tileXRight = ((x + width - 1) / TS).toInt()
-        val tileYBottom = ((newY) / TS).toInt()
-        val tileYTop = ((newY + height - 1) / TS).toInt()
+        // Aplicăm aceleași margini și pentru mișcarea verticală
+        val padX = 18f
+        val padYTop = 35f
+        val padYBot = 5f
+
+        val tileXLeft = ((x + padX) / TS).toInt()
+        val tileXRight = ((x + width - padX - 1) / TS).toInt()
+        val tileYBottom = ((newY + padYBot) / TS).toInt()
+        val tileYTop = ((newY + height - padYTop - 1) / TS).toInt()
 
         var canMove = true
         for (tileX in tileXLeft..tileXRight) {
