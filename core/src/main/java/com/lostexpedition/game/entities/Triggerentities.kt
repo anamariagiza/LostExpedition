@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.math.Rectangle
 import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.states.EndGameState
 import com.lostexpedition.game.states.PuzzleState
@@ -23,6 +24,9 @@ class Chest(
     private val openImage: TextureRegion? = Assets.chestOpened
     private var isOpen = false
 
+    // Zona de interacțiune extinsă
+    private val interactBounds = Rectangle(x - 20f, y - 20f, width + 40f, height + 40f)
+
     fun setCanInteract(interact: Boolean) {
         canInteract = interact
     }
@@ -30,14 +34,19 @@ class Chest(
     override fun update() {
         if (canInteract && !isOpen) {
             val player = refLink.player
-            if (player != null && bounds.overlaps(player.bounds)) {
-                if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+
+            // ✅ FIX: Am adăugat .toRectangle()
+            if (player != null && interactBounds.overlaps(player.bounds.toRectangle())) {
+
+                val interactPressed = Gdx.input.isKeyJustPressed(Input.Keys.E) ||
+                    (refLink.touchController != null && refLink.touchController.isInteractJustPressed)
+
+                if (interactPressed) {
                     isOpen = true
                     refLink.setState(EndGameState(refLink))
                 }
             }
         }
-        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
@@ -60,7 +69,7 @@ class CaveEntrance(
 ) : Entity(refLink, x, y, width, height) {
 
     override fun update() {
-        // ✅ FIX: bounds.setPosition(x, y) șters
+        // Invisible trigger - logica e în GameState
     }
 
     override fun render(batch: SpriteBatch) {
@@ -78,7 +87,7 @@ class LevelExit(
 ) : Entity(refLink, x, y, width, height) {
 
     override fun update() {
-        // ✅ FIX: bounds.setPosition(x, y) șters
+        // Invisible trigger - logica e în GameState
     }
 
     override fun render(batch: SpriteBatch) {
@@ -96,10 +105,19 @@ class PuzzleTrigger(
     private val puzzleId: Int
 ) : Entity(refLink, x, y, width, height) {
 
+    // Zona de interacțiune extinsă
+    private val interactBounds = Rectangle(x - 30f, y - 30f, width + 60f, height + 60f)
+
     override fun update() {
         val player = refLink.player
-        if (player != null && bounds.overlaps(player.bounds)) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+
+        // ✅ FIX: Am adăugat .toRectangle()
+        if (player != null && interactBounds.overlaps(player.bounds.toRectangle())) {
+
+            val interactPressed = Gdx.input.isKeyJustPressed(Input.Keys.E) ||
+                (refLink.touchController != null && refLink.touchController.isInteractJustPressed)
+
+            if (interactPressed) {
                 val gameState = refLink.gameState
                 if (gameState != null && gameState.isWoodSignMessageShowing()) {
                     return
@@ -107,7 +125,6 @@ class PuzzleTrigger(
                 refLink.setState(PuzzleState(refLink, puzzleId))
             }
         }
-        // ✅ FIX: bounds.setPosition(x, y) șters
     }
 
     override fun render(batch: SpriteBatch) {
