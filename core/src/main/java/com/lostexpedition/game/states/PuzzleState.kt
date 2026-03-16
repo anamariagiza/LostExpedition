@@ -155,17 +155,19 @@ class PuzzleState(
         val width = Gdx.graphics.width.toFloat()
         val height = Gdx.graphics.height.toFloat()
 
-        batch.end()
+        // Ne asigurăm că batch-ul e oprit înainte de ShapeRenderer
+        if (batch.isDrawing) batch.end()
 
-        // Overlay
+        // Overlay negru
         shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, width, height)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
         shapeRenderer.color = Color(0f, 0f, 0f, 0.8f)
         shapeRenderer.rect(0f, 0f, width, height)
         shapeRenderer.end()
 
-        batch.begin()
+        // Deschidem batch-ul NOU pentru text
         batch.projectionMatrix.setToOrtho2D(0f, 0f, width, height)
+        batch.begin()
 
         val centerX = width / 2f
         val centerY = height / 2f
@@ -203,6 +205,8 @@ class PuzzleState(
             font.color = Color.WHITE
             font.draw(batch, "Press ENTER to continue", centerX - 100f, centerY - 50f)
         }
+
+        batch.end()
     }
 
     private fun generatePuzzle() {

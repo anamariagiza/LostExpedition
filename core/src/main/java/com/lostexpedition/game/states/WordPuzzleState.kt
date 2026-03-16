@@ -130,7 +130,7 @@ class WordPuzzleState(refLink: RefLinks) : State(refLink) {
 
         State.getPreviousState()?.render(batch)
 
-        batch.end()
+        if (batch.isDrawing) batch.end()
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
         shapeRenderer.color = Color(0f, 0f, 0f, 0.8f)
