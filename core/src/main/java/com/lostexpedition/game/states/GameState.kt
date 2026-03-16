@@ -427,6 +427,8 @@ class GameState(
         refLink.touchController.update()
         player.update()
 
+        fogOfWar?.update()
+
         if (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             var interactedWithSign = false
 
@@ -887,6 +889,8 @@ class GameState(
             entity.render(batch)
         }
         batch.end()
+
+        fogOfWar?.render(batch, camera)
 
         renderUI(batch)
 
