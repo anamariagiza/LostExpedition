@@ -87,7 +87,7 @@ class MenuState(refLink: RefLinks) : State(refLink) {
 
     private fun startNewGame() {
         // Pornim jocul de la zero (isLoadingFromSave = false)
-        refLink.setState(GameState(refLink, 0, false))
+        refLink.setState(GameState(refLink, 1, false))
     }
 
     private fun loadGame() {

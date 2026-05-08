@@ -199,6 +199,11 @@ class GameState(
         player.health = loadedHealth
         refLink.player = player
 
+        // DEBUG - sterge dupa testare
+        if (currentLevelIndex == 1) {
+            hasDoorKeys[0] = true
+        }
+
         refLink.gameCamera.position.set(player.x, player.y, 0f)
         refLink.gameCamera.update()
 

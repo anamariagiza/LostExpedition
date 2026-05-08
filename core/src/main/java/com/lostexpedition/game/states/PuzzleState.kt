@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
@@ -32,7 +33,12 @@ class PuzzleState(
     private var currentPuzzleTitle = ""
     private var currentObjective = ""
 
+    // Butoane rezultat
+    private val nextPuzzleButtonBounds = Rectangle()
+    private val retryButtonBounds = Rectangle()
+
     // Puzzle 1
+    private val optionBounds1 = mutableListOf<Rectangle>()
     private var grid1 = Array(3) { Array(3) { "" } }
     private var playerChoice1 = ""
     private val symbols = arrayOf("SUN", "MOON", "STAR", "BOLT")
@@ -85,11 +91,19 @@ class PuzzleState(
 
     override fun update(delta: Float) {
         if (puzzleSolved || puzzleFailed) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-                if (puzzleSolved) {
+            if (Gdx.input.justTouched()) {
+                val touchX = Gdx.input.x.toFloat()
+                val touchY = Gdx.graphics.height - Gdx.input.y.toFloat()
+
+                if (puzzleSolved && nextPuzzleButtonBounds.contains(touchX, touchY)) {
                     handlePuzzleSuccess()
-                } else {
-                    handlePuzzleFailure()
+                } else if (puzzleFailed && retryButtonBounds.contains(touchX, touchY)) {
+                    // Reset puzzle
+                    puzzleSolved = false
+                    puzzleFailed = false
+                    puzzleActive = true
+                    optionBounds1.clear()
+                    generatePuzzle()
                 }
             }
             return
@@ -155,7 +169,6 @@ class PuzzleState(
         val width = Gdx.graphics.width.toFloat()
         val height = Gdx.graphics.height.toFloat()
 
-        // Ne asigurăm că batch-ul e oprit înainte de ShapeRenderer
         if (batch.isDrawing) batch.end()
 
         // Overlay negru
@@ -165,17 +178,20 @@ class PuzzleState(
         shapeRenderer.rect(0f, 0f, width, height)
         shapeRenderer.end()
 
-        // Deschidem batch-ul NOU pentru text
         batch.projectionMatrix.setToOrtho2D(0f, 0f, width, height)
         batch.begin()
 
         val centerX = width / 2f
         val centerY = height / 2f
 
-        // Title
+        // Title + Objective
         font.color = Color.YELLOW
-        font.draw(batch, currentPuzzleTitle, centerX - 100f, centerY + 200f)
-        font.draw(batch, currentObjective, centerX - 150f, centerY + 150f)
+        val titleLayout = GlyphLayout(font, currentPuzzleTitle)
+        font.draw(batch, currentPuzzleTitle, centerX - titleLayout.width / 2f, height - 40f)
+
+        font.color = Color.WHITE
+        val objLayout = GlyphLayout(font, currentObjective)
+        font.draw(batch, currentObjective, centerX - objLayout.width / 2f, height - 70f)
 
         // Timer
         if (puzzleActive) {
@@ -184,7 +200,7 @@ class PuzzleState(
             font.draw(batch, "Time: %.1f s".format(timeLeft / 1000f), 10f, height - 10f)
         }
 
-        // Draw puzzle-specific content
+        // Puzzle specific
         when (puzzleId) {
             1 -> drawPuzzle1(batch, centerX, centerY)
             2 -> drawPuzzle2(batch, centerX, centerY)
@@ -193,17 +209,80 @@ class PuzzleState(
             5 -> drawPuzzle5(batch, centerX, centerY)
         }
 
-        // Result messages
+        // Rezultate cu butoane
         if (puzzleSolved) {
+            batch.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+            shapeRenderer.color = Color(0f, 0f, 0f, 0.85f)
+            shapeRenderer.rect(centerX - 280f, centerY - 70f, 560f, 170f)
+            shapeRenderer.end()
+            batch.begin()
+
             font.color = Color.GREEN
-            font.draw(batch, "PUZZLE SOLVED!", centerX - 80f, centerY)
+            val msgLayout = GlyphLayout(font, "PUZZLE SOLVED!")
+            font.draw(batch, "PUZZLE SOLVED!", centerX - msgLayout.width / 2f, centerY + 70f)
+
+            val btnWidth = 480f
+            val btnHeight = 70f
+            val btnX = centerX - btnWidth / 2f
+            val btnY = centerY - 50f
+            nextPuzzleButtonBounds.set(btnX, btnY, btnWidth, btnHeight)
+
+            batch.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+            shapeRenderer.color = Color(0f, 0.5f, 0f, 1f)
+            shapeRenderer.rect(btnX, btnY, btnWidth, btnHeight)
+            shapeRenderer.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+            shapeRenderer.color = Color.WHITE
+            shapeRenderer.rect(btnX, btnY, btnWidth, btnHeight)
+            shapeRenderer.end()
+            batch.begin()
+
             font.color = Color.WHITE
-            font.draw(batch, "Press ENTER to continue", centerX - 100f, centerY - 50f)
+            val btnLayout = GlyphLayout(font, "Rezolva urmatorul puzzle")
+            font.draw(
+                batch, "Rezolva urmatorul puzzle",
+                btnX + (btnWidth - btnLayout.width) / 2f,
+                btnY + (btnHeight + btnLayout.height) / 2f
+            )
+
         } else if (puzzleFailed) {
+            batch.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+            shapeRenderer.color = Color(0f, 0f, 0f, 0.85f)
+            shapeRenderer.rect(centerX - 280f, centerY - 70f, 560f, 170f)
+            shapeRenderer.end()
+            batch.begin()
+
             font.color = Color.RED
-            font.draw(batch, "PUZZLE FAILED!", centerX - 100f, centerY)
+            val msgLayout = GlyphLayout(font, "GRESIT! Incearca din nou.")
+            font.draw(batch, "GRESIT! Incearca din nou.", centerX - msgLayout.width / 2f, centerY + 70f)
+
+            val btnWidth = 340f
+            val btnHeight = 70f
+            val btnX = centerX - btnWidth / 2f
+            val btnY = centerY - 50f
+            retryButtonBounds.set(btnX, btnY, btnWidth, btnHeight)
+
+            batch.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+            shapeRenderer.color = Color(0.6f, 0f, 0f, 1f)
+            shapeRenderer.rect(btnX, btnY, btnWidth, btnHeight)
+            shapeRenderer.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+            shapeRenderer.color = Color.WHITE
+            shapeRenderer.rect(btnX, btnY, btnWidth, btnHeight)
+            shapeRenderer.end()
+            batch.begin()
+
             font.color = Color.WHITE
-            font.draw(batch, "Press ENTER to continue", centerX - 100f, centerY - 50f)
+            val btnLayout = GlyphLayout(font, "Incearca din nou")
+            font.draw(
+                batch, "Incearca din nou",
+                btnX + (btnWidth - btnLayout.width) / 2f,
+                btnY + (btnHeight + btnLayout.height) / 2f
+            )
         }
 
         batch.end()
@@ -217,6 +296,7 @@ class PuzzleState(
             1 -> {
                 currentPuzzleTitle = "Symbol Matching"
                 currentObjective = "Choose the missing symbol"
+                grid1 = Array(3) { Array(3) { "" } }
                 grid1[0][0] = symbols[0]; grid1[0][1] = symbols[1]; grid1[0][2] = symbols[2]
                 grid1[2][0] = symbols[0]; grid1[2][1] = symbols[1]; grid1[2][2] = symbols[2]
                 grid1[1][0] = symbols[3]; grid1[1][2] = symbols[3]
@@ -292,9 +372,17 @@ class PuzzleState(
     }
 
     private fun checkSymbolClick(mouseX: Float, mouseY: Float) {
-        // Simplified - just solve on any click for now
-        puzzleSolved = true
-        puzzleActive = false
+        for (i in optionBounds1.indices) {
+            if (optionBounds1[i].contains(mouseX, mouseY)) {
+                if (symbols[i] == "BOLT") {
+                    puzzleSolved = true
+                } else {
+                    puzzleFailed = true
+                }
+                puzzleActive = false
+                break
+            }
+        }
     }
 
     private fun checkGemClick(mouseX: Float, mouseY: Float) {
@@ -358,8 +446,76 @@ class PuzzleState(
     }
 
     private fun drawPuzzle1(batch: SpriteBatch, centerX: Float, centerY: Float) {
+        val cellSize = 120f
+        val gridStartX = centerX - cellSize * 1.5f
+        val gridStartY = centerY + cellSize * 1.5f
+
+        val symbolImages = mapOf(
+            "SUN"  to Assets.puzzle1Sun,
+            "MOON" to Assets.puzzle1Moon,
+            "STAR" to Assets.puzzle1Star,
+            "BOLT" to Assets.puzzle1Bolt
+        )
+
+        for (row in 0..2) {
+            for (col in 0..2) {
+                val cellX = gridStartX + col * cellSize
+                val cellY = gridStartY - row * cellSize
+
+                batch.end()
+                shapeRenderer.projectionMatrix.setToOrtho2D(
+                    0f, 0f,
+                    Gdx.graphics.width.toFloat(),
+                    Gdx.graphics.height.toFloat()
+                )
+                shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+                shapeRenderer.color = Color.WHITE
+                shapeRenderer.rect(cellX, cellY, cellSize, cellSize)
+                shapeRenderer.end()
+                batch.begin()
+
+                val symbol = grid1[row][col]
+                if (symbol == "?") {
+                    font.color = Color.YELLOW
+                    font.draw(batch, "?", cellX + cellSize / 2f - 8f, cellY + cellSize / 2f + 8f)
+                } else {
+                    val img = symbolImages[symbol]
+                    img?.let {
+                        batch.draw(it, cellX + 8f, cellY + 8f, cellSize - 16f, cellSize - 16f)
+                    }
+                }
+            }
+        }
+
+        val optionY = gridStartY - 3 * cellSize - 30f
+        val optionStartX = centerX - symbols.size / 2f * (cellSize + 10f)
+        optionBounds1.clear()
+
         font.color = Color.WHITE
-        font.draw(batch, "Click to solve puzzle 1", centerX - 100f, centerY)
+        font.draw(batch, "Choose:", optionStartX - 10f, optionY + cellSize + 20f)
+
+        for (i in symbols.indices) {
+            val optX = optionStartX + i * (cellSize + 10f)
+            val optY = optionY
+
+            optionBounds1.add(Rectangle(optX, optY, cellSize, cellSize))
+
+            batch.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+            shapeRenderer.color = Color(0.2f, 0.2f, 0.5f, 1f)
+            shapeRenderer.rect(optX, optY, cellSize, cellSize)
+            shapeRenderer.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+            shapeRenderer.color = Color.GOLD
+            shapeRenderer.rect(optX, optY, cellSize, cellSize)
+            shapeRenderer.end()
+            batch.begin()
+
+            val img = symbolImages[symbols[i]]
+            img?.let {
+                batch.draw(it, optX + 8f, optY + 8f, cellSize - 16f, cellSize - 16f)
+            }
+        }
     }
 
     private fun drawPuzzle2(batch: SpriteBatch, centerX: Float, centerY: Float) {
