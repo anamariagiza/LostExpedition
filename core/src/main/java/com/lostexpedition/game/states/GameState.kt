@@ -576,7 +576,8 @@ class GameState(
                 boss.setChaseMode(true)
             }
 
-            if (boss.health <= 0 && !bossDefeated) {
+            // MODIFICAT: folosim isDefeated() în loc de health <= 0
+            if (boss.isDefeated() && !bossDefeated) {
                 bossDefeated = true
                 finalChest?.setCanInteract(true)
             }
@@ -589,37 +590,31 @@ class GameState(
 
         while (iterator.hasNext()) {
             val entity = iterator.next()
+
+            // MODIFICAT: sărim peste agenții învinși
+            if (entity is Agent && entity.isDefeated()) continue
+
             entity.update()
 
             when (entity) {
                 is Key -> {
                     if (entity.bounds.overlaps(player.bounds)) {
-                        if (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-                            val associatedId = entity.associatedPuzzleId
-                            if (associatedId in hasDoorKeys.indices) {
-                                hasDoorKeys[associatedId] = true
-                                collectionMessage = "Cheia colectată!"
-                                collectionMessageTime = System.currentTimeMillis()
-                            }
-                            iterator.remove()
-                        } else {
-                            collectionMessage = "Apasă Interact pentru a lua cheia!"
+                        val associatedId = entity.associatedPuzzleId
+                        if (associatedId in hasDoorKeys.indices) {
+                            hasDoorKeys[associatedId] = true
+                            collectionMessage = "Cheia colectată!"
                             collectionMessageTime = System.currentTimeMillis()
                         }
+                        iterator.remove()
                     }
                 }
 
                 is Talisman -> {
                     if (entity.bounds.overlaps(player.bounds)) {
-                        if (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-                            hasTalisman = true
-                            collectionMessage = "Talisman colectat!"
-                            collectionMessageTime = System.currentTimeMillis()
-                            iterator.remove()
-                        } else {
-                            collectionMessage = "Apasă Interact pentru a lua talismanul!"
-                            collectionMessageTime = System.currentTimeMillis()
-                        }
+                        hasTalisman = true
+                        collectionMessage = "Talisman colectat!"
+                        collectionMessageTime = System.currentTimeMillis()
+                        iterator.remove()
                     }
                 }
 
@@ -652,10 +647,6 @@ class GameState(
                     if (isPuzzleSolved(entity.getPuzzleId())) {
                         iterator.remove()
                     }
-                }
-
-                is NPC -> {
-                    entity.checkPlayerInteraction(player, refLink.touchController, hasTalisman)
                 }
             }
         }
@@ -885,7 +876,8 @@ class GameState(
 
         val allEntities = entities.toMutableList()
         allEntities.add(player)
-        finalBoss?.let { if (it.health > 0) allEntities.add(it) }
+        // MODIFICAT: folosim isDefeated() în loc de health > 0
+        finalBoss?.let { if (!it.isDefeated()) allEntities.add(it) }
         allEntities.sortByDescending { it.y }
 
         batch.projectionMatrix = camera.combined

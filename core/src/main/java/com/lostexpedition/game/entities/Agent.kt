@@ -33,6 +33,7 @@ class Agent(
 
     private var aiState = AIState.PATROL
     private var isChaseMode = false
+    private var defeated = false
 
     private enum class Direction {
         LEFT, RIGHT
@@ -51,7 +52,6 @@ class Agent(
     private val attackDamage = 25
 
     init {
-        // Folosim animația generică de agent (sau enemy)
         val defaultAnim = Assets.agentAnimation ?: Assets.enemyAnimation ?: createPlaceholderAnimation()
         walkAnimation = defaultAnim
         attackAnimation = defaultAnim
@@ -59,7 +59,6 @@ class Agent(
     }
 
     private fun createPlaceholderAnimation(): Animation<TextureRegion> {
-        // Creăm o animație placeholder folosind prima frame din playerIdleDown
         val placeholderFrame = Assets.playerIdleDown?.getKeyFrame(0f) ?: TextureRegion()
         return Animation(0.1f, placeholderFrame)
     }
@@ -69,7 +68,11 @@ class Agent(
         currentSpeed = if (chase) chaseSpeed else normalSpeed
     }
 
+    fun isDefeated(): Boolean = defeated
+
     override fun update() {
+        if (defeated) return
+
         stateTime += Gdx.graphics.deltaTime
 
         when {
@@ -167,7 +170,6 @@ class Agent(
                     height.toFloat()
                 )
 
-                // ✅ FIX: Convertim entity.bounds la Rectangle pentru comparație
                 val entityRect = entity.bounds.toRectangle()
                 if (testBounds.overlaps(entityRect)) {
                     return true
@@ -193,7 +195,6 @@ class Agent(
             height.toFloat()
         )
 
-        // ✅ FIX: Convertim player.bounds la Rectangle pentru comparație
         val playerRect = player.bounds.toRectangle()
         if (attackBounds.overlaps(playerRect)) {
             player.takeDamage(attackDamage)
@@ -201,6 +202,7 @@ class Agent(
     }
 
     fun takeDamage(damage: Int) {
+        if (defeated) return
         health -= damage
         health = health.coerceAtLeast(0)
 
@@ -210,6 +212,7 @@ class Agent(
     }
 
     private fun onDeath() {
+        defeated = true
         println("Agent defeated!")
     }
 
@@ -223,6 +226,7 @@ class Agent(
     }
 
     override fun render(batch: SpriteBatch) {
+        if (defeated) return
         if (!isOnScreen()) return
 
         val currentFrame = currentAnimation.getKeyFrame(stateTime, true)
@@ -236,7 +240,6 @@ class Agent(
             height.toFloat()
         )
 
-        // Draw health bar above the agent (like Java version)
         if (health < maxHealth) {
             drawHealthBar(batch, health, maxHealth)
         }
