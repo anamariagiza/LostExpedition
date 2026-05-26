@@ -99,11 +99,6 @@ class GameState(
     init {
         refLink.gameState = this
 
-        Gdx.input.inputProcessor = object : com.badlogic.gdx.InputAdapter() {
-            override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                return refLink.touchController.touchDown(screenX, screenY, pointer, button)
-            }
-
             override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
                 return refLink.touchController.touchUp(screenX, screenY, pointer, button)
             }

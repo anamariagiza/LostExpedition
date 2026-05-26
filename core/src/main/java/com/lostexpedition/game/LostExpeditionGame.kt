@@ -21,9 +21,6 @@ class LostExpeditionGame : ApplicationAdapter() {
         batch = SpriteBatch()
         refLinks = RefLinks(this)
 
-        // Activăm TouchController pentru Android
-        Gdx.input.inputProcessor = refLinks.touchController
-
         refLinks.setState(LoadingScreenState(refLinks))
     }
 
@@ -42,7 +39,6 @@ class LostExpeditionGame : ApplicationAdapter() {
         State.currentState?.render(batch)
     }
 
-    // ✅ IMPLEMENTARE NOUĂ: Salvare automată la pauză/minimizare
     override fun pause() {
         super.pause()
         try {
@@ -57,7 +53,6 @@ class LostExpeditionGame : ApplicationAdapter() {
 
     override fun resize(width: Int, height: Int) {
         val aspectRatio = width.toFloat() / height.toFloat()
-        // Păstrăm lățimea fixă și ajustăm înălțimea pentru a vedea mai mult/puțin din hartă vertical
         val gameWidth = 1500f
         val gameHeight = gameWidth / aspectRatio
 

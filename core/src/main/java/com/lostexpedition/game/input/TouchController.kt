@@ -6,18 +6,17 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Vector2
 
-/**
- * TouchController - Gestionează input-ul tactil pentru Android.
- * Implementează InputProcessor pentru a intercepta evenimentele de touch de la sistem.
- */
 class TouchController(private var screenWidth: Int, private var screenHeight: Int) : InputProcessor {
 
-    // Joystick stânga-jos (fix)
-    private val joystick = VirtualJoystick(200f, 200f, 120f, 60f)
+    // Joystick stânga-jos (proporțional cu ecranul)
+    private val joystick = VirtualJoystick(
+        screenWidth * 0.10f, screenHeight * 0.20f,
+        screenWidth * 0.08f, screenWidth * 0.04f
+    )
 
-    // Butoane dreapta-jos (Attack și Interact)
-    private val attackButton = VirtualButton(screenWidth - 250f, 200f, 90f)
-    private val interactButton = VirtualButton(screenWidth - 450f, 150f, 70f)
+    // Butoane dreapta-jos (proporțional cu ecranul)
+    private val attackButton = VirtualButton(screenWidth * 0.75f, screenHeight * 0.28f, screenWidth * 0.055f)
+    private val interactButton = VirtualButton(screenWidth * 0.85f, screenHeight * 0.20f, screenWidth * 0.06f)
 
     private val shapeRenderer = ShapeRenderer()
 
@@ -40,7 +39,6 @@ class TouchController(private var screenWidth: Int, private var screenHeight: In
     private var wasAttackPressed = false
     private var wasInteractPressed = false
 
-    // Helpers pentru direcțiile de mișcare folosite în clasa Player
     fun isUpPressed(): Boolean = joystickDeltaY > 0.5f
     fun isDownPressed(): Boolean = joystickDeltaY < -0.5f
     fun isLeftPressed(): Boolean = joystickDeltaX < -0.5f
@@ -61,7 +59,6 @@ class TouchController(private var screenWidth: Int, private var screenHeight: In
         isAttackPressed = attackButton.isPressed
         isInteractPressed = interactButton.isPressed
 
-        // Detecție pentru apăsare singulară (trigger)
         isAttackJustPressed = isAttackPressed && !wasAttackPressed
         isInteractJustPressed = isInteractPressed && !wasInteractPressed
 
@@ -69,10 +66,7 @@ class TouchController(private var screenWidth: Int, private var screenHeight: In
         wasInteractPressed = isInteractPressed
     }
 
-    // --- Implementare obligatorie InputProcessor ---
-
     override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-        // Conversie coordonate: Android are 0 la marginea de sus, ShapeRenderer are 0 jos
         val actualY = Gdx.graphics.height - screenY.toFloat()
         val actualX = screenX.toFloat()
 
@@ -100,12 +94,10 @@ class TouchController(private var screenWidth: Int, private var screenHeight: In
         return joystick.handleTouchDragged(actualX, actualY, pointer)
     }
 
-    // ✅ REZOLVARE EROARE: Metoda nouă adăugată în versiunile recente de libGDX
     override fun touchCancelled(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
         return touchUp(screenX, screenY, pointer, button)
     }
 
-    // Metode de tastatură nefolosite pe Android
     override fun keyDown(keycode: Int): Boolean = false
     override fun keyUp(keycode: Int): Boolean = false
     override fun keyTyped(character: Char): Boolean = false
@@ -113,14 +105,10 @@ class TouchController(private var screenWidth: Int, private var screenHeight: In
     override fun scrolled(amountX: Float, amountY: Float): Boolean = false
 
     fun draw() {
-        // Setăm proiecția pentru UI (ecran static)
         shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
 
-        // Desenare Joystick
         joystick.draw(shapeRenderer)
-
-        // Desenare Butoane
         attackButton.draw(shapeRenderer, Color.RED)
         interactButton.draw(shapeRenderer, Color.BLUE)
 
@@ -130,8 +118,6 @@ class TouchController(private var screenWidth: Int, private var screenHeight: In
     fun dispose() {
         shapeRenderer.dispose()
     }
-
-    // --- Clase interne ---
 
     private class VirtualJoystick(
         private val x: Float,
