@@ -99,15 +99,6 @@ class GameState(
     init {
         refLink.gameState = this
 
-            override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                return refLink.touchController.touchUp(screenX, screenY, pointer, button)
-            }
-
-            override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
-                return refLink.touchController.touchDragged(screenX, screenY, pointer)
-            }
-        }
-
         try {
             val generator = FreeTypeFontGenerator(Gdx.files.internal("font.ttf"))
             val parameter = FreeTypeFontGenerator.FreeTypeFontParameter()
