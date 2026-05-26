@@ -653,6 +653,10 @@ class GameState(
                         iterator.remove()
                     }
                 }
+
+                is NPC -> {
+                    entity.checkPlayerInteraction(player, refLink.touchController, hasTalisman)
+                }
             }
         }
 
