@@ -33,7 +33,7 @@ class Agent(
 
     private var aiState = AIState.PATROL
     private var isChaseMode = false
-    private var defeated = false
+    private var defeated = false              // NOU
 
     private enum class Direction {
         LEFT, RIGHT
@@ -68,10 +68,10 @@ class Agent(
         currentSpeed = if (chase) chaseSpeed else normalSpeed
     }
 
-    fun isDefeated(): Boolean = defeated
+    fun isDefeated(): Boolean = defeated      // NOU
 
     override fun update() {
-        if (defeated) return
+        if (defeated) return                  // NOU
 
         stateTime += Gdx.graphics.deltaTime
 
@@ -131,12 +131,8 @@ class Agent(
         val newX = x + velocityX
         val newY = y + velocityY
 
-        if (!isColliding(newX, y)) {
-            x = newX
-        }
-        if (!isColliding(x, newY)) {
-            y = newY
-        }
+        if (!isColliding(newX, y)) x = newX
+        if (!isColliding(x, newY)) y = newY
 
         currentAnimation = walkAnimation
     }
@@ -151,10 +147,7 @@ class Agent(
 
         for (tileY in tileYBottom..tileYTop) {
             for (tileX in tileXLeft..tileXRight) {
-                val tile = map.getTile(tileX, tileY)
-                if (tile.isSolid) {
-                    return true
-                }
+                if (map.getTile(tileX, tileY).isSolid) return true
             }
         }
 
@@ -162,18 +155,8 @@ class Agent(
         if (gameState != null) {
             for (entity in gameState.getEntities()) {
                 if (entity === this) continue
-
-                val testBounds = com.badlogic.gdx.math.Rectangle(
-                    testX,
-                    testY,
-                    width.toFloat(),
-                    height.toFloat()
-                )
-
-                val entityRect = entity.bounds.toRectangle()
-                if (testBounds.overlaps(entityRect)) {
-                    return true
-                }
+                val testBounds = com.badlogic.gdx.math.Rectangle(testX, testY, width.toFloat(), height.toFloat())
+                if (testBounds.overlaps(entity.bounds.toRectangle())) return true
             }
         }
 
@@ -190,29 +173,23 @@ class Agent(
 
         val attackBounds = com.badlogic.gdx.math.Rectangle(
             if (direction == Direction.RIGHT) x + width else x - attackRange,
-            y,
-            attackRange,
-            height.toFloat()
+            y, attackRange, height.toFloat()
         )
 
-        val playerRect = player.bounds.toRectangle()
-        if (attackBounds.overlaps(playerRect)) {
+        if (attackBounds.overlaps(player.bounds.toRectangle())) {
             player.takeDamage(attackDamage)
         }
     }
 
     fun takeDamage(damage: Int) {
-        if (defeated) return
+        if (defeated) return                  // NOU
         health -= damage
         health = health.coerceAtLeast(0)
-
-        if (health <= 0) {
-            onDeath()
-        }
+        if (health <= 0) onDeath()
     }
 
     private fun onDeath() {
-        defeated = true
+        defeated = true                       // NOU
         println("Agent defeated!")
     }
 
@@ -226,7 +203,7 @@ class Agent(
     }
 
     override fun render(batch: SpriteBatch) {
-        if (defeated) return
+        if (defeated) return                  // NOU
         if (!isOnScreen()) return
 
         val currentFrame = currentAnimation.getKeyFrame(stateTime, true)
@@ -245,7 +222,5 @@ class Agent(
         }
     }
 
-    override fun dispose() {
-        // Dispose resources if needed
-    }
+    override fun dispose() {}
 }

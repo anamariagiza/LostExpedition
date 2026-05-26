@@ -576,8 +576,7 @@ class GameState(
                 boss.setChaseMode(true)
             }
 
-            // MODIFICAT: folosim isDefeated() în loc de health <= 0
-            if (boss.isDefeated() && !bossDefeated) {
+            if (boss.isDefeated() && !bossDefeated) {   // MODIFICAT
                 bossDefeated = true
                 finalChest?.setCanInteract(true)
             }
@@ -590,10 +589,7 @@ class GameState(
 
         while (iterator.hasNext()) {
             val entity = iterator.next()
-
-            // MODIFICAT: sărim peste agenții învinși
-            if (entity is Agent && entity.isDefeated()) continue
-
+            if (entity is Agent && entity.isDefeated()) continue   // NOU
             entity.update()
 
             when (entity) {
@@ -608,7 +604,6 @@ class GameState(
                         iterator.remove()
                     }
                 }
-
                 is Talisman -> {
                     if (entity.bounds.overlaps(player.bounds)) {
                         hasTalisman = true
@@ -617,13 +612,11 @@ class GameState(
                         iterator.remove()
                     }
                 }
-
                 is Animal -> {
                     if (player.bounds.overlaps(entity.bounds)) {
                         playerInContactWithAnimal = true
                     }
                 }
-
                 is Trap -> {
                     if (entity.isActive()) {
                         if (player.bounds.overlaps(entity.bounds)) {
@@ -642,7 +635,6 @@ class GameState(
                         }
                     }
                 }
-
                 is PuzzleTrigger -> {
                     if (isPuzzleSolved(entity.getPuzzleId())) {
                         iterator.remove()
@@ -876,8 +868,7 @@ class GameState(
 
         val allEntities = entities.toMutableList()
         allEntities.add(player)
-        // MODIFICAT: folosim isDefeated() în loc de health > 0
-        finalBoss?.let { if (!it.isDefeated()) allEntities.add(it) }
+        finalBoss?.let { if (!it.isDefeated()) allEntities.add(it) }   // MODIFICAT
         allEntities.sortByDescending { it.y }
 
         batch.projectionMatrix = camera.combined
@@ -888,9 +879,7 @@ class GameState(
         batch.end()
 
         fogOfWar?.render(batch, camera)
-
         renderUI(batch)
-
         refLink.touchController.draw()
     }
 

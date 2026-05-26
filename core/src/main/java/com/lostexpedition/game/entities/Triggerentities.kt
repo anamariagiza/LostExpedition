@@ -35,9 +35,7 @@ class Chest(
         if (canInteract && !isOpen) {
             val player = refLink.player
 
-            // ✅ FIX: Am adăugat .toRectangle()
             if (player != null && interactBounds.overlaps(player.bounds.toRectangle())) {
-
                 val interactPressed = Gdx.input.isKeyJustPressed(Input.Keys.E) ||
                     (refLink.touchController != null && refLink.touchController.isInteractJustPressed)
 
