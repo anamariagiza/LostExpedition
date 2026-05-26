@@ -49,6 +49,9 @@ class PuzzleState(
     private var clue2 = ""
     private val gems = arrayOf("SAPPHIRE", "EMERALD", "RUBY", "DIAMOND")
     private var wrongAttempts2 = 0
+    private val gemBounds2 = mutableListOf<Rectangle>()
+    private val dropZoneBounds2 = mutableListOf<Rectangle>()
+    private var selectedGemIndex2 = -1
 
     // Puzzle 3
     private var riddle3 = ""
@@ -98,11 +101,14 @@ class PuzzleState(
                 if (puzzleSolved && nextPuzzleButtonBounds.contains(touchX, touchY)) {
                     handlePuzzleSuccess()
                 } else if (puzzleFailed && retryButtonBounds.contains(touchX, touchY)) {
-                    // Reset puzzle
                     puzzleSolved = false
                     puzzleFailed = false
                     puzzleActive = true
                     optionBounds1.clear()
+                    gemBounds2.clear()
+                    dropZoneBounds2.clear()
+                    selectedGemIndex2 = -1
+                    wrongAttempts2 = 0
                     generatePuzzle()
                 }
             }
@@ -130,6 +136,7 @@ class PuzzleState(
                     } else {
                         playerOrder2.clear()
                         repeat(4) { playerOrder2.add("?") }
+                        selectedGemIndex2 = -1
                     }
                 }
             }
@@ -304,11 +311,12 @@ class PuzzleState(
             }
             2 -> {
                 currentPuzzleTitle = "Gem Ordering"
-                currentObjective = "Place gems in order"
+                currentObjective = "Place gems in correct order"
                 correctOrder2 = listOf(gems[0], gems[1], gems[2], gems[3])
                 playerOrder2.clear()
                 repeat(4) { playerOrder2.add("?") }
-                clue2 = "Order: Sapphire, Emerald, Ruby, Diamond"
+                selectedGemIndex2 = -1
+                wrongAttempts2 = 0
             }
             3 -> {
                 currentPuzzleTitle = "Ancient Riddle"
@@ -386,7 +394,29 @@ class PuzzleState(
     }
 
     private fun checkGemClick(mouseX: Float, mouseY: Float) {
-        // Simplified
+        // Click pe o zonă de drop
+        for (i in dropZoneBounds2.indices) {
+            if (dropZoneBounds2[i].contains(mouseX, mouseY)) {
+                if (selectedGemIndex2 >= 0 && playerOrder2[i] == "?") {
+                    playerOrder2[i] = gems[selectedGemIndex2]
+                    selectedGemIndex2 = -1
+                } else if (playerOrder2[i] != "?") {
+                    playerOrder2[i] = "?"
+                    selectedGemIndex2 = -1
+                }
+                return
+            }
+        }
+
+        // Click pe o piatră disponibilă
+        val availableGems = gems.filterNot { playerOrder2.contains(it) }
+        for (i in gemBounds2.indices) {
+            if (i < availableGems.size && gemBounds2[i].contains(mouseX, mouseY)) {
+                val gemIndex = gems.indexOf(availableGems[i])
+                selectedGemIndex2 = if (selectedGemIndex2 == gemIndex) -1 else gemIndex
+                return
+            }
+        }
     }
 
     private fun checkAnswerClick(mouseX: Float, mouseY: Float) {
@@ -445,6 +475,7 @@ class PuzzleState(
         refLink.setState(gameState ?: GameOverState(refLink))
     }
 
+    // ==================== DRAW PUZZLE 1 ====================
     private fun drawPuzzle1(batch: SpriteBatch, centerX: Float, centerY: Float) {
         val cellSize = 120f
         val gridStartX = centerX - cellSize * 1.5f
@@ -518,11 +549,104 @@ class PuzzleState(
         }
     }
 
+    // ==================== DRAW PUZZLE 2 ====================
     private fun drawPuzzle2(batch: SpriteBatch, centerX: Float, centerY: Float) {
+        val gemSize = 100f
+        val gap = 20f
+        val totalWidth = 4 * gemSize + 3 * gap
+        val startX = centerX - totalWidth / 2f
+
+        val gemImages = arrayOf(
+            Assets.puzzle2Gems?.let { extractGem(it, 0) },
+            Assets.puzzle2Gems?.let { extractGem(it, 1) },
+            Assets.puzzle2Gems?.let { extractGem(it, 2) },
+            Assets.puzzle2Gems?.let { extractGem(it, 3) }
+        )
+
+        // Indiciu
+        font.color = Color.YELLOW
+        font.draw(batch, "Clue: Emerald is between Ruby and Diamond", startX, centerY + 200f)
+
+        // --- ZONA DE DROP (sus) ---
         font.color = Color.WHITE
-        font.draw(batch, clue2, centerX - 150f, centerY)
+        font.draw(batch, "Drop here:", startX, centerY + 150f)
+
+        dropZoneBounds2.clear()
+        for (i in 0..3) {
+            val x = startX + i * (gemSize + gap)
+            val y = centerY + 60f
+            dropZoneBounds2.add(Rectangle(x, y, gemSize, gemSize))
+
+            batch.end()
+            shapeRenderer.projectionMatrix.setToOrtho2D(
+                0f, 0f,
+                Gdx.graphics.width.toFloat(),
+                Gdx.graphics.height.toFloat()
+            )
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+            shapeRenderer.color = if (selectedGemIndex2 >= 0) Color(0.3f, 0.3f, 0.1f, 1f) else Color(0.15f, 0.15f, 0.15f, 1f)
+            shapeRenderer.rect(x, y, gemSize, gemSize)
+            shapeRenderer.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+            shapeRenderer.color = Color.GOLD
+            shapeRenderer.rect(x, y, gemSize, gemSize)
+            shapeRenderer.end()
+            batch.begin()
+
+            val placed = playerOrder2[i]
+            if (placed != "?") {
+                val placedIndex = gems.indexOf(placed)
+                if (placedIndex >= 0) {
+                    gemImages[placedIndex]?.let {
+                        batch.draw(it, x + 8f, y + 8f, gemSize - 16f, gemSize - 16f)
+                    }
+                }
+                font.color = Color.WHITE
+                font.draw(batch, placed.take(3), x + 8f, y + 20f)
+            } else {
+                font.color = Color(0.5f, 0.5f, 0.5f, 1f)
+                font.draw(batch, "${i + 1}", x + gemSize / 2f - 8f, y + gemSize / 2f + 8f)
+            }
+        }
+
+        // --- PIETRE DISPONIBILE (jos) ---
+        font.color = Color.WHITE
+        font.draw(batch, "Gems:", startX, centerY - 20f)
+
+        gemBounds2.clear()
+        val availableGems = gems.filterNot { playerOrder2.contains(it) }
+
+        for (i in availableGems.indices) {
+            val x = startX + i * (gemSize + gap)
+            val y = centerY - 120f
+            gemBounds2.add(Rectangle(x, y, gemSize, gemSize))
+
+            val isSelected = gems.indexOf(availableGems[i]) == selectedGemIndex2
+
+            batch.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+            shapeRenderer.color = if (isSelected) Color(0.5f, 0.5f, 0f, 1f) else Color(0.2f, 0.2f, 0.5f, 1f)
+            shapeRenderer.rect(x, y, gemSize, gemSize)
+            shapeRenderer.end()
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+            shapeRenderer.color = if (isSelected) Color.YELLOW else Color.GOLD
+            shapeRenderer.rect(x, y, gemSize, gemSize)
+            shapeRenderer.end()
+            batch.begin()
+
+            gemImages[gems.indexOf(availableGems[i])]?.let {
+                batch.draw(it, x + 8f, y + 8f, gemSize - 16f, gemSize - 16f)
+            }
+            font.color = Color.WHITE
+            font.draw(batch, availableGems[i].take(3), x + 8f, y + 20f)
+        }
+
+        // Greșeli rămase
+        font.color = Color.RED
+        font.draw(batch, "Attempts left: ${MAX_WRONG_ATTEMPTS - wrongAttempts2}", startX, centerY - 160f)
     }
 
+    // ==================== DRAW PUZZLE 3 ====================
     private fun drawPuzzle3(batch: SpriteBatch, centerX: Float, centerY: Float) {
         font.color = Color.WHITE
         font.draw(batch, riddle3, centerX - 200f, centerY + 50f)
@@ -531,6 +655,7 @@ class PuzzleState(
         }
     }
 
+    // ==================== DRAW PUZZLE 4 ====================
     private fun drawPuzzle4(batch: SpriteBatch, centerX: Float, centerY: Float) {
         if (currentQuestionIndex4 >= TOTAL_QUESTIONS_4) return
 
@@ -544,9 +669,19 @@ class PuzzleState(
         }
     }
 
+    // ==================== DRAW PUZZLE 5 ====================
     private fun drawPuzzle5(batch: SpriteBatch, centerX: Float, centerY: Float) {
         font.color = Color.WHITE
         font.draw(batch, "Pairs found: $pairsFound5/8", centerX - 100f, centerY)
+    }
+
+    // ==================== HELPER ====================
+    private fun extractGem(region: TextureRegion, index: Int): TextureRegion {
+        val w = region.regionWidth / 2
+        val h = region.regionHeight / 2
+        val col = index % 2
+        val row = index / 2
+        return TextureRegion(region, col * w, row * h, w, h)
     }
 
     override fun dispose() {
