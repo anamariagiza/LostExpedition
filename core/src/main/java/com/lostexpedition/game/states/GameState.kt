@@ -594,22 +594,32 @@ class GameState(
             when (entity) {
                 is Key -> {
                     if (entity.bounds.overlaps(player.bounds)) {
-                        val associatedId = entity.associatedPuzzleId
-                        if (associatedId in hasDoorKeys.indices) {
-                            hasDoorKeys[associatedId] = true
-                            collectionMessage = "Cheia colectată!"
+                        if (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                            val associatedId = entity.associatedPuzzleId
+                            if (associatedId in hasDoorKeys.indices) {
+                                hasDoorKeys[associatedId] = true
+                                collectionMessage = "Cheia colectată!"
+                                collectionMessageTime = System.currentTimeMillis()
+                            }
+                            iterator.remove()
+                        } else {
+                            collectionMessage = "Apasă Interact pentru a lua cheia!"
                             collectionMessageTime = System.currentTimeMillis()
                         }
-                        iterator.remove()
                     }
                 }
 
                 is Talisman -> {
                     if (entity.bounds.overlaps(player.bounds)) {
-                        hasTalisman = true
-                        collectionMessage = "Talisman colectat!"
-                        collectionMessageTime = System.currentTimeMillis()
-                        iterator.remove()
+                        if (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                            hasTalisman = true
+                            collectionMessage = "Talisman colectat!"
+                            collectionMessageTime = System.currentTimeMillis()
+                            iterator.remove()
+                        } else {
+                            collectionMessage = "Apasă Interact pentru a lua talismanul!"
+                            collectionMessageTime = System.currentTimeMillis()
+                        }
                     }
                 }
 
