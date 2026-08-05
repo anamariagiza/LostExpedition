@@ -1,0 +1,43 @@
+plugins {
+  id "application"
+  id "org.jetbrains.kotlin.jvm"
+}
+
+sourceSets.main.resources.srcDirs += [project.rootProject.file('assets').path]
+application.mainClass = 'com.lostexpedition.game.lwjgl3.Lwjgl3Launcher'
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+  jvmToolchain(17)
+}
+
+dependencies {
+  implementation project(':core')
+  implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+  implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+  implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+  implementation "com.badlogicgames.gdx:gdx-tools:$gdxVersion"
+}
+
+run {
+  workingDir = project.rootProject.file('assets').path
+  if (System.properties['os.name'].toLowerCase(Locale.ROOT).contains('mac')) {
+    jvmArgs += "-XstartOnFirstThread"
+  }
+}
+
+tasks.register('dist', Jar) {
+  archiveFileName.set("${appName}-${project.projectVersion}.jar")
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  manifest {
+    attributes 'Main-Class': application.mainClass, 'Enable-Native-Access': 'ALL-UNNAMED'
+  }
+  from {
+    configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+  }
+  with jar
+}

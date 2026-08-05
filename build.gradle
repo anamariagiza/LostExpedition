@@ -1,0 +1,29 @@
+// This buildscript block is required for the Android and Kotlin plugins to be found by the project.
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+  dependencies {
+    classpath "com.android.tools.build:gradle:8.2.2"  // Era 7.4.2
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
+  }
+}
+
+allprojects {
+  version = project.projectVersion // Use version from gradle.properties
+
+  // Custom properties like 'appName' MUST be defined inside this 'ext' block.
+  ext {
+    appName = "Lost Expedition"
+  }
+
+  // This ensures all subprojects use the same repositories for dependencies.
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    google()
+    gradlePluginPortal()
+  }
+}

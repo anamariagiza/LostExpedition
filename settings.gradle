@@ -1,0 +1,15 @@
+pluginManagement {
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+  plugins {
+    id "com.android.application" version "8.2.2"  // Era 7.4.2
+    id "org.jetbrains.kotlin.jvm" version "1.9.22"
+    id "org.jetbrains.kotlin.android" version "1.9.22"
+  }
+}
+
+// A list of which subprojects to load.
+include 'core', 'lwjgl3', 'android'
