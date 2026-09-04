@@ -4,8 +4,10 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import com.badlogic.gdx.math.Rectangle
 import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.utils.RefLinks
 
@@ -18,6 +20,10 @@ class HelpState(refLink: RefLinks) : State(refLink) {
     }
     private val textFont = BitmapFont().apply {
         data.setScale(1.1f)
+        color = Color.WHITE
+    }
+    private val buttonFont = BitmapFont().apply {
+        data.setScale(1.5f)
         color = Color.WHITE
     }
 
@@ -35,13 +41,19 @@ class HelpState(refLink: RefLinks) : State(refLink) {
         "",
         "Meniul:",
         "• P - Pauză",
-        "• ESC - Înapoi la meniu",
-        "",
-        "Apasă ESC pentru a reveni"
+        "• ESC - Înapoi la meniu"
     )
+
+    private val backBtnBounds = Rectangle()
 
     init {
         println("HelpState initialized")
+        calculateLayout()
+    }
+
+    private fun calculateLayout() {
+        val w = Gdx.graphics.width.toFloat()
+        backBtnBounds.set(w / 2f - 150f, 40f, 300f, 80f)
     }
 
     override fun update(delta: Float) {
@@ -49,26 +61,41 @@ class HelpState(refLink: RefLinks) : State(refLink) {
             Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
             refLink.setState(MenuState(refLink))
         }
+
+        if (Gdx.input.justTouched()) {
+            val touchX = Gdx.input.x.toFloat()
+            val touchY = Gdx.graphics.height - Gdx.input.y.toFloat()
+
+            if (backBtnBounds.contains(touchX, touchY)) {
+                refLink.setState(MenuState(refLink))
+            }
+        }
     }
 
     override fun render(batch: SpriteBatch) {
         val width = Gdx.graphics.width.toFloat()
         val height = Gdx.graphics.height.toFloat()
 
-        // Background
         batch.begin()
         Assets.backgroundMenu?.let {
             batch.draw(it, 0f, 0f, width, height)
         }
         batch.end()
 
-        // Overlay
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
         shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)
         shapeRenderer.rect(0f, 0f, width, height)
+
+        shapeRenderer.color = Color(0.2f, 0.2f, 0.8f, 1f)
+        shapeRenderer.rect(backBtnBounds.x, backBtnBounds.y, backBtnBounds.width, backBtnBounds.height)
         shapeRenderer.end()
 
-        // Content
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+        shapeRenderer.color = Color.WHITE
+        shapeRenderer.rect(backBtnBounds.x, backBtnBounds.y, backBtnBounds.width, backBtnBounds.height)
+        shapeRenderer.end()
+
         batch.begin()
 
         var yPos = height - 80f
@@ -80,6 +107,13 @@ class HelpState(refLink: RefLinks) : State(refLink) {
             yPos -= if (line.isEmpty()) 15f else 30f
         }
 
+        val backLayout = GlyphLayout(buttonFont, "ÎNAPOI")
+        buttonFont.draw(
+            batch, "ÎNAPOI",
+            backBtnBounds.x + (backBtnBounds.width - backLayout.width) / 2f,
+            backBtnBounds.y + (backBtnBounds.height + backLayout.height) / 2f
+        )
+
         batch.end()
     }
 
@@ -87,5 +121,6 @@ class HelpState(refLink: RefLinks) : State(refLink) {
         shapeRenderer.dispose()
         titleFont.dispose()
         textFont.dispose()
+        buttonFont.dispose()
     }
 }
