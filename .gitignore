@@ -154,3 +154,5 @@ Thumbs.db
 *#*#
 /.kotlin/
 /assets/assets.txt
+
+.claude/
