@@ -27,7 +27,8 @@ import kotlin.math.abs
 class GameState(
     refLink: RefLinks,
     private var startLevel: Int = 0,
-    private val isLoadingFromSave: Boolean = false
+    private val isLoadingFromSave: Boolean = false,
+    private val loadFromCheckpoint: Boolean = false
 ) : State(refLink) {
 
     companion object {
@@ -53,6 +54,15 @@ class GameState(
     var hasDoorKeys = BooleanArray(7) { false }
     private var hasTalisman = false
     private var caveEntranceUnlocked = false
+
+    // Stare persistenta permanenta: nu se reseteaza cand un obiect e consumat
+    // (usa deschisa, cheia folosita), ca sa nu reapara la reincarcarea nivelului.
+    private var doorsOpened = BooleanArray(6) { false }
+    private var finalDoorOpened = false
+    private var finalChestOpened = false
+    private var keysCollected = BooleanArray(7) { false }
+    private var talismanCollected = false
+
     private var currentObjective = "Adună cheia și talismanul Lunii."
     private var isObjectiveDisplayed = false
 
@@ -122,13 +132,17 @@ class GameState(
             font.data.setScale(2f)
         }
 
-        initLevelInternal(startLevel, isLoadingFromSave)
+        initLevelInternal(startLevel, isLoadingFromSave, loadFromCheckpoint)
 
         refLink.gameCamera.zoom = currentZoom
         refLink.gameCamera.update()
     }
 
-    private fun initLevelInternal(desiredLevelIndex: Int, loadPlayerStateFromDb: Boolean) {
+    private fun initLevelInternal(
+        desiredLevelIndex: Int,
+        loadPlayerStateFromDb: Boolean,
+        loadFromCheckpoint: Boolean = false
+    ) {
         var playerStartX = 100f
         var playerStartY = 100f
         var loadedHealth = 100
@@ -136,7 +150,13 @@ class GameState(
         var resolvedLevelIndex = if (desiredLevelIndex in levelPaths.indices) desiredLevelIndex else 0
         var loadedData: PlayerData? = null
 
-        if (loadPlayerStateFromDb) {
+        if (loadFromCheckpoint) {
+            val checkpointList = refLink.databaseManager.loadCheckpointData()
+            if (checkpointList.isNotEmpty()) {
+                loadedData = checkpointList[0]
+                resolvedLevelIndex = if (loadedData.levelIndex in levelPaths.indices) loadedData.levelIndex else resolvedLevelIndex
+            }
+        } else if (loadPlayerStateFromDb) {
             val loadedDataList = refLink.databaseManager.loadGameData()
             if (loadedDataList.isNotEmpty()) {
                 loadedData = loadedDataList[0]
@@ -146,9 +166,9 @@ class GameState(
             }
         }
 
-        // Resolve the level from the save (above) before creating the map, fog of
-        // war, player and entities, so they are all built for that level instead
-        // of whatever level was requested first.
+        // Resolve the level from the save/checkpoint (above) before creating the
+        // map, fog of war, player and entities, so they are all built for that
+        // level instead of whatever level was requested first.
         currentLevelIndex = resolvedLevelIndex
 
         currentMap = Map(refLink, levelPaths[currentLevelIndex], currentLevelIndex)
@@ -161,9 +181,18 @@ class GameState(
         if (loadedData != null) {
             playerStartX = loadedData.playerX
             playerStartY = loadedData.playerY
-            loadedHealth = loadedData.playerHealth
+            // "TRY AGAIN" reia nivelul cu viata plina; Continue/Load pastreaza viata salvata.
+            loadedHealth = if (loadFromCheckpoint) 100 else loadedData.playerHealth
             hasLevelKey = loadedData.hasKey
             hasDoorKeys = loadedData.hasDoorKeys
+            hasTalisman = loadedData.hasTalisman
+            caveEntranceUnlocked = loadedData.caveEntranceUnlocked
+            doorsOpened = loadedData.doorsOpened
+            finalDoorOpened = loadedData.finalDoorOpened
+            bossDefeated = loadedData.bossDefeated
+            finalChestOpened = loadedData.finalChestOpened
+            keysCollected = loadedData.keysCollected
+            talismanCollected = loadedData.talismanCollected
 
             if (loadedData.puzzlesSolvedString.isNotEmpty()) {
                 loadedData.puzzlesSolvedString.split(",").forEach { idString ->
@@ -175,7 +204,7 @@ class GameState(
             }
             isObjectiveDisplayed = true
         } else {
-            if (loadPlayerStateFromDb) {
+            if (!loadFromCheckpoint && loadPlayerStateFromDb) {
                 resetToDefaults()
             }
             when (currentLevelIndex) {
@@ -223,10 +252,32 @@ class GameState(
 
         entities.clear()
         loadLevelEntities()
+        replayPersistedTileChanges()
         updateObjective()
 
         // Muzica nivelului curent (music_level1.ogg / music_level2.ogg / music_level3.ogg)
         SoundManager.playMusic(SoundManager.musicForLevel(currentLevelIndex))
+    }
+
+    /**
+     * Reaplica pe harta proaspat incarcata usile deja deschise persistent
+     * (fara sunet, fara sa consume cheia - doar starea vizuala a tilelor).
+     */
+    private fun replayPersistedTileChanges() {
+        when (currentLevelIndex) {
+            1 -> {
+                for (i in doorsOpened.indices) {
+                    if (doorsOpened[i]) {
+                        openDoorTiles(i)
+                    }
+                }
+            }
+            2 -> {
+                if (finalDoorOpened) {
+                    openFinalDoorTiles()
+                }
+            }
+        }
     }
 
     private fun resetToDefaults() {
@@ -236,6 +287,12 @@ class GameState(
         puzzlesSolved = BooleanArray(TOTAL_PUZZLES_LEVEL2 + 1) { false }
         hasTalisman = false
         caveEntranceUnlocked = false
+        doorsOpened = BooleanArray(6) { false }
+        finalDoorOpened = false
+        bossDefeated = false
+        finalChestOpened = false
+        keysCollected = BooleanArray(7) { false }
+        talismanCollected = false
     }
 
     private fun loadLevelEntities() {
@@ -285,12 +342,14 @@ class GameState(
         caveGuardianNPC = NPC(refLink, 93f * TS, topDownY(92))
         entities.add(caveGuardianNPC!!)
 
-        entities.add(Talisman(refLink, 45f * TS, topDownY(52), TextureRegion(Assets.talismanImage)))
+        if (!talismanCollected) {
+            entities.add(Talisman(refLink, 45f * TS, topDownY(52), TextureRegion(Assets.talismanImage)))
+        }
 
         caveEntrance = CaveEntrance(refLink, 91f * TS, topDownY(88), (TS * 2).toInt(), (TS * 2).toInt())
         entities.add(caveEntrance!!)
 
-        if (!hasDoorKeys[0]) {
+        if (!keysCollected[0]) {
             entities.add(Key(refLink, 12f * TS, topDownY(85), Assets.keyImage, 0))
         }
 
@@ -329,7 +388,7 @@ class GameState(
         entities.add(LevelExit(refLink, 110f * TS, topDownY(14), (TS * 2).toInt(), TS.toInt()))
 
         for (i in 1..TOTAL_PUZZLES_LEVEL2) {
-            if (isPuzzleSolved(i)) {
+            if (isPuzzleSolved(i) && !keysCollected[i]) {
                 val keyTileX = puzzleKeyPositions[i - 1][0]
                 val keyTileY = puzzleKeyPositions[i - 1][1]
                 entities.add(Key(refLink, keyTileX * TS, topDownY(keyTileY), Assets.keyImage, i))
@@ -358,7 +417,10 @@ class GameState(
         entities.add(PuzzleTrigger(refLink, 75f * TS, topDownY(26), TS.toInt(), TS.toInt(), 99))
 
         finalChest = Chest(refLink, 37f * TS, topDownY(3), TS.toInt(), TS.toInt())
-        finalChest?.setCanInteract(false)
+        finalChest?.setCanInteract(bossDefeated && !finalChestOpened)
+        if (finalChestOpened) {
+            finalChest?.setOpened(true)
+        }
         entities.add(finalChest!!)
 
         val trapTiles = arrayOf(
@@ -400,8 +462,12 @@ class GameState(
             }
         }
 
-        finalBoss = Agent(refLink, 36f * TS, topDownY(22), 36f * TS, 43f * TS, true)
-        entities.add(finalBoss!!)
+        if (!bossDefeated) {
+            finalBoss = Agent(refLink, 36f * TS, topDownY(22), 36f * TS, 43f * TS, true)
+            entities.add(finalBoss!!)
+        } else {
+            finalBoss = null
+        }
 
         val woodSign3 = DecorativeObject(
             refLink, 37f * TS, topDownY(56), 64, 64,
@@ -609,6 +675,9 @@ class GameState(
                         val associatedId = entity.associatedPuzzleId
                         if (associatedId in hasDoorKeys.indices) {
                             hasDoorKeys[associatedId] = true
+                            if (associatedId in keysCollected.indices) {
+                                keysCollected[associatedId] = true
+                            }
                             collectionMessage = "Cheia colectată!"
                             collectionMessageTime = System.currentTimeMillis()
                             SoundManager.playSfx(SoundManager.SFX_KEY)
@@ -619,6 +688,7 @@ class GameState(
                 is Talisman -> {
                     if (entity.bounds.overlaps(player.bounds)) {
                         hasTalisman = true
+                        talismanCollected = true
                         collectionMessage = "Talisman colectat!"
                         collectionMessageTime = System.currentTimeMillis()
                         SoundManager.playSfx(SoundManager.SFX_KEY)
@@ -695,30 +765,39 @@ class GameState(
         }
     }
 
+    /** Doar tilele usii (fara sunet, fara sa consume cheia) - refolosit silentios la incarcare. */
+    private fun openDoorTiles(doorIndex: Int) {
+        val doorCoords = puzzleDoorPositions[doorIndex]
+        if (doorCoords.size == 8) {
+            // AICI TREBUIE SĂ PUI GID-URILE PENTRU UȘA DESCHISĂ!
+            // Caută în Tiled care sunt ID-urile pentru ușa deschisă (stânga-sus, dreapta-sus etc.)
+            // Notă: Pune ID-ul din Tiled + 1 (dacă în Tiled scrie 73, aici pui 74)
+
+            val openTopLeft = 60     // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (stânga sus)
+            val openTopRight = 61    // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (dreapta sus)
+            val openBotLeft = 92    // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (stânga jos)
+            val openBotRight = 93   // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (dreapta jos)
+
+            // Înlocuim cele 4 bucăți ale ușii închise cu cele ale ușii deschise
+            changeTileGidJava(doorCoords[0], doorCoords[1], openTopLeft, 1)
+            changeTileGidJava(doorCoords[2], doorCoords[3], openTopRight, 1)
+            changeTileGidJava(doorCoords[4], doorCoords[5], openBotLeft, 1)
+            changeTileGidJava(doorCoords[6], doorCoords[7], openBotRight, 1)
+        }
+    }
+
+    /** Pasul interactiv: consuma cheia, marcheaza usa ca deschisa permanent, reda sunetul. */
     private fun openDoor(doorIndex: Int) {
         if (doorIndex in hasDoorKeys.indices && hasDoorKeys[doorIndex]) {
-            val doorCoords = puzzleDoorPositions[doorIndex]
-            if (doorCoords.size == 8) {
-                // AICI TREBUIE SĂ PUI GID-URILE PENTRU UȘA DESCHISĂ!
-                // Caută în Tiled care sunt ID-urile pentru ușa deschisă (stânga-sus, dreapta-sus etc.)
-                // Notă: Pune ID-ul din Tiled + 1 (dacă în Tiled scrie 73, aici pui 74)
+            openDoorTiles(doorIndex)
 
-                val openTopLeft = 60     // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (stânga sus)
-                val openTopRight = 61    // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (dreapta sus)
-                val openBotLeft = 92    // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (stânga jos)
-                val openBotRight = 93   // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (dreapta jos)
-
-                // Înlocuim cele 4 bucăți ale ușii închise cu cele ale ușii deschise
-                changeTileGidJava(doorCoords[0], doorCoords[1], openTopLeft, 1)
-                changeTileGidJava(doorCoords[2], doorCoords[3], openTopRight, 1)
-                changeTileGidJava(doorCoords[4], doorCoords[5], openBotLeft, 1)
-                changeTileGidJava(doorCoords[6], doorCoords[7], openBotRight, 1)
-
-                hasDoorKeys[doorIndex] = false
-                collectionMessage = "Ușa s-a deschis!"
-                collectionMessageTime = System.currentTimeMillis()
-                SoundManager.playSfx(SoundManager.SFX_DOOR)
+            hasDoorKeys[doorIndex] = false
+            if (doorIndex in doorsOpened.indices) {
+                doorsOpened[doorIndex] = true
             }
+            collectionMessage = "Ușa s-a deschis!"
+            collectionMessageTime = System.currentTimeMillis()
+            SoundManager.playSfx(SoundManager.SFX_DOOR)
         }
     }
 
@@ -745,16 +824,23 @@ class GameState(
         }
     }
 
-    private fun openFinalDoor() {
+    /** Doar tilele usii finale (fara sunet, fara sa consume cheia) - refolosit silentios la incarcare. */
+    private fun openFinalDoorTiles() {
         val layerIndex = 2
         changeTileGidJava(39, 6, 74, layerIndex)
         changeTileGidJava(40, 6, 75, layerIndex)
         changeTileGidJava(39, 7, 120, layerIndex)
         changeTileGidJava(40, 7, 121, layerIndex)
+    }
+
+    /** Pasul interactiv: consuma cheia finala, marcheaza usa ca deschisa permanent, reda sunetul. */
+    private fun openFinalDoor() {
+        openFinalDoorTiles()
 
         if (hasDoorKeys.size > 6) {
             hasDoorKeys[6] = false
         }
+        finalDoorOpened = true
         collectionMessage = "Ușa s-a deblocat!"
         collectionMessageTime = System.currentTimeMillis()
         SoundManager.playSfx(SoundManager.SFX_DOOR)
@@ -777,8 +863,9 @@ class GameState(
         collectionMessage = "Nivelul 2: Labirintul"
         collectionMessageTime = System.currentTimeMillis()
 
-        // 5. Checkpoint: Salvăm jocul automat (inclusiv cheia)
+        // 5. Salvăm jocul automat (inclusiv cheia) și checkpoint-ul de nivel
         saveCurrentState()
+        saveCheckpoint()
     }
 
     private fun passToLevel3() {
@@ -796,6 +883,7 @@ class GameState(
         collectionMessageTime = System.currentTimeMillis()
 
         saveCurrentState()
+        saveCheckpoint()
     }
 
     fun isPuzzleSolved(puzzleId: Int): Boolean {
@@ -855,12 +943,14 @@ class GameState(
     fun isCaveEntranceUnlocked(): Boolean = caveEntranceUnlocked
     fun setCaveEntranceUnlocked(unlocked: Boolean) { caveEntranceUnlocked = unlocked }
 
-    fun saveCurrentState() {
-        val solvedPuzzlesString = puzzlesSolved
+    private fun buildPuzzlesSolvedString(): String {
+        return puzzlesSolved
             .indices
             .filter { puzzlesSolved[it] && it in 1..TOTAL_PUZZLES_LEVEL2 }
             .joinToString(",")
+    }
 
+    fun saveCurrentState() {
         refLink.databaseManager.saveGameData(
             levelIndex = currentLevelIndex,
             score = 0,
@@ -869,8 +959,42 @@ class GameState(
             playerHealth = player.health,
             hasKey = hasLevelKey,
             hasDoorKeys = hasDoorKeys,
-            puzzlesSolvedString = solvedPuzzlesString
+            puzzlesSolvedString = buildPuzzlesSolvedString(),
+            hasTalisman = hasTalisman,
+            caveEntranceUnlocked = caveEntranceUnlocked,
+            doorsOpened = doorsOpened,
+            finalDoorOpened = finalDoorOpened,
+            bossDefeated = bossDefeated,
+            finalChestOpened = finalChestOpened,
+            keysCollected = keysCollected,
+            talismanCollected = talismanCollected
         )
+    }
+
+    /** Checkpoint separat de autosave: pastreaza inceputul nivelului curent pentru "TRY AGAIN". */
+    fun saveCheckpoint() {
+        refLink.databaseManager.saveCheckpointData(
+            levelIndex = currentLevelIndex,
+            score = 0,
+            playerX = player.x,
+            playerY = player.y,
+            playerHealth = player.health,
+            hasKey = hasLevelKey,
+            hasDoorKeys = hasDoorKeys,
+            puzzlesSolvedString = buildPuzzlesSolvedString(),
+            hasTalisman = hasTalisman,
+            caveEntranceUnlocked = caveEntranceUnlocked,
+            doorsOpened = doorsOpened,
+            finalDoorOpened = finalDoorOpened,
+            bossDefeated = bossDefeated,
+            finalChestOpened = finalChestOpened,
+            keysCollected = keysCollected,
+            talismanCollected = talismanCollected
+        )
+    }
+
+    fun setFinalChestOpened(opened: Boolean) {
+        finalChestOpened = opened
     }
 
     fun getMap() = currentMap

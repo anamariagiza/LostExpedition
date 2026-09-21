@@ -165,7 +165,7 @@ class GameOverState(refLink: RefLinks) : State(refLink) {
         when (selectedOption) {
             0 -> { // TRY AGAIN
                 println("Restarting level ${retryLevel + 1}...")
-                refLink.setState(GameState(refLink, startLevel = retryLevel))
+                refLink.setState(GameState(refLink, startLevel = retryLevel, loadFromCheckpoint = true))
             }
             1 -> { // RETURN TO MAIN MENU
                 println("Returning to main menu...")

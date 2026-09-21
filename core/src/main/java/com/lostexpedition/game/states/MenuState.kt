@@ -89,9 +89,16 @@ class MenuState(refLink: RefLinks) : State(refLink) {
     }
 
     private fun startNewGame() {
+        // Stergem autosave-ul si checkpoint-ul unei rulari anterioare.
+        refLink.databaseManager.clearAllSaveData()
+
         // Pornim jocul de la zero (isLoadingFromSave = false), de la NIVELUL 1 (index 0).
         // Inainte era index 1 (nivelul 2) - ramasita de debug.
         refLink.setState(GameState(refLink, 0, false))
+
+        // Checkpoint initial, ca "TRY AGAIN" sa aiba de unde sa reia daca jucatorul
+        // moare in nivelul 1 inainte de a ajunge la nivelul 2.
+        refLink.gameState?.saveCheckpoint()
     }
 
     private fun loadGame() {

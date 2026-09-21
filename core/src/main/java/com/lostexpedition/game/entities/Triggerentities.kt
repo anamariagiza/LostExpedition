@@ -32,6 +32,14 @@ class Chest(
         canInteract = interact
     }
 
+    /** Marcheaza cufarul ca deschis fara animatie/sunet, pentru reincarcarea unei salvari. */
+    fun setOpened(opened: Boolean) {
+        isOpen = opened
+        if (opened) {
+            canInteract = false
+        }
+    }
+
     override fun update() {
         if (canInteract && !isOpen) {
             val player = refLink.player
@@ -42,6 +50,7 @@ class Chest(
 
                 if (interactPressed) {
                     isOpen = true
+                    refLink.gameState?.setFinalChestOpened(true)
                     com.lostexpedition.game.utils.SoundManager.playSfx(com.lostexpedition.game.utils.SoundManager.SFX_CHEST)
                     refLink.setState(EndGameState(refLink))
                 }
