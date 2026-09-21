@@ -19,6 +19,7 @@ import com.lostexpedition.game.map.FogOfWar
 import com.lostexpedition.game.map.Map
 import com.lostexpedition.game.tiles.Tile
 import com.lostexpedition.game.tiles.TileConstants
+import com.lostexpedition.game.utils.PlayerData
 import com.lostexpedition.game.utils.RefLinks
 import com.lostexpedition.game.utils.SoundManager
 import kotlin.math.abs
@@ -121,7 +122,7 @@ class GameState(
             font.data.setScale(2f)
         }
 
-        initLevelInternal(currentLevelIndex, isLoadingFromSave)
+        initLevelInternal(startLevel, isLoadingFromSave)
 
         refLink.gameCamera.zoom = currentZoom
         refLink.gameCamera.update()
@@ -132,7 +133,23 @@ class GameState(
         var playerStartY = 100f
         var loadedHealth = 100
 
-        currentLevelIndex = if (desiredLevelIndex in levelPaths.indices) desiredLevelIndex else 0
+        var resolvedLevelIndex = if (desiredLevelIndex in levelPaths.indices) desiredLevelIndex else 0
+        var loadedData: PlayerData? = null
+
+        if (loadPlayerStateFromDb) {
+            val loadedDataList = refLink.databaseManager.loadGameData()
+            if (loadedDataList.isNotEmpty()) {
+                loadedData = loadedDataList[0]
+                resolvedLevelIndex = if (loadedData.levelIndex in levelPaths.indices) loadedData.levelIndex else 0
+            } else {
+                resolvedLevelIndex = 0
+            }
+        }
+
+        // Resolve the level from the save (above) before creating the map, fog of
+        // war, player and entities, so they are all built for that level instead
+        // of whatever level was requested first.
+        currentLevelIndex = resolvedLevelIndex
 
         currentMap = Map(refLink, levelPaths[currentLevelIndex], currentLevelIndex)
         refLink.map = currentMap
@@ -141,31 +158,26 @@ class GameState(
 
         val TS = TileConstants.TILE_SIZE
 
-        if (loadPlayerStateFromDb) {
-            val loadedDataList = refLink.databaseManager.loadGameData()
-            if (loadedDataList.isNotEmpty()) {
-                val data = loadedDataList[0]
-                currentLevelIndex = data.levelIndex
-                playerStartX = data.playerX
-                playerStartY = data.playerY
-                loadedHealth = data.playerHealth
-                hasLevelKey = data.hasKey
-                hasDoorKeys = data.hasDoorKeys
+        if (loadedData != null) {
+            playerStartX = loadedData.playerX
+            playerStartY = loadedData.playerY
+            loadedHealth = loadedData.playerHealth
+            hasLevelKey = loadedData.hasKey
+            hasDoorKeys = loadedData.hasDoorKeys
 
-                if (data.puzzlesSolvedString.isNotEmpty()) {
-                    data.puzzlesSolvedString.split(",").forEach { idString ->
-                        val id = idString.toIntOrNull()
-                        if (id != null && id in 1..TOTAL_PUZZLES_LEVEL2) {
-                            puzzlesSolved[id] = true
-                        }
+            if (loadedData.puzzlesSolvedString.isNotEmpty()) {
+                loadedData.puzzlesSolvedString.split(",").forEach { idString ->
+                    val id = idString.toIntOrNull()
+                    if (id != null && id in 1..TOTAL_PUZZLES_LEVEL2) {
+                        puzzlesSolved[id] = true
                     }
                 }
-                isObjectiveDisplayed = true
-            } else {
+            }
+            isObjectiveDisplayed = true
+        } else {
+            if (loadPlayerStateFromDb) {
                 resetToDefaults()
             }
-        } else {
-            currentLevelIndex = desiredLevelIndex
             when (currentLevelIndex) {
                 0 -> {
                     playerStartX = 2f * TS
