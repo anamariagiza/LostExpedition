@@ -50,9 +50,14 @@ class PauseState(refLink: RefLinks) : State(refLink) {
     }
 
     private fun resumeGame() {
-        // Reîncărcăm jocul din salvarea pe care am făcut-o automat când am apăsat butonul de pauză
-        // Parametrii: level 0 (ignorat la load), isLoadingFromSave = true
-        refLink.setState(GameState(refLink, 0, true))
+        // Revenim la instanta GameState existenta, fara sa reconstruim nimic din
+        // salvarea de pe disc (asta ar pierde starea de runtime a nivelului curent).
+        val existingGameState = refLink.gameState ?: (refLink.getPreviousState() as? GameState)
+        if (existingGameState != null) {
+            refLink.setState(existingGameState)
+        } else {
+            refLink.setState(GameState(refLink, 0, true))
+        }
     }
 
     override fun render(batch: SpriteBatch) {
