@@ -75,6 +75,11 @@ class MenuState(refLink: RefLinks) : State(refLink) {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
             handleSelection()
         }
+
+        // Tasta/gestul BACK (Android) iese din aplicație, la fel ca opțiunea EXIT.
+        if (Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
+            exitGame()
+        }
     }
 
     private fun handleSelection() {

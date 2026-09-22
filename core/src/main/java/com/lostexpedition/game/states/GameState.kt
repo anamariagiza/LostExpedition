@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
+import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
@@ -107,6 +108,10 @@ class GameState(
     private val settingsButtonBounds = Rectangle()
     private var showMiniMapOverlay = false
 
+    // Terenul solid al minihărții, copt o singură dată per nivel (vezi bakeMiniMapTerrainTexture()),
+    // ca overlay-ul să nu mai reparcurgă toată harta în fiecare frame cât timp e deschis.
+    private var miniMapTerrainTexture: Texture? = null
+
     init {
         refLink.gameState = this
 
@@ -164,6 +169,7 @@ class GameState(
         refLink.map = currentMap
 
         fogOfWar = FogOfWar(refLink, currentMap.width, currentMap.height)
+        bakeMiniMapTerrainTexture()
 
         val TS = TileConstants.TILE_SIZE
 
@@ -429,6 +435,13 @@ class GameState(
             System.currentTimeMillis() - collectionMessageTime > MESSAGE_DURATION_MS
         ) {
             collectionMessage = null
+        }
+
+        // Tasta/gestul BACK (Android) declanșează exact același flux ca butonul de pauză.
+        if (Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
+            saveCurrentState()
+            refLink.setState(PauseState(refLink))
+            return
         }
 
         // ✅ CHECK CLUSTER BUTOANE HUD (minihartă / pauză / setări)
@@ -915,6 +928,7 @@ class GameState(
     override fun dispose() {
         currentMap.dispose()
         fogOfWar?.dispose()
+        miniMapTerrainTexture?.dispose()
         font.dispose()
         shapeRenderer.dispose()
         // touchController și Assets sunt la nivel de aplicație (RefLinks/LostExpeditionGame),
@@ -1138,6 +1152,42 @@ class GameState(
 
     // Overlay de minihartă, deschis/închis din butonul din cluster. Reutilizează
     // exact logica de desenare a hărții de dinainte, doar centrată și mai mare.
+    /**
+     * Coace terenul solid al nivelului curent într-o textură (1 pixel per tile), o singură
+     * dată la încărcarea nivelului, folosind isSolidAt() (fără alocare, fără GID lookups).
+     * Overlay-ul de minihartă doar scalează această textură la desenare, în loc să
+     * reparcurgă toată harta în fiecare frame cât timp e deschis.
+     */
+    private fun bakeMiniMapTerrainTexture() {
+        miniMapTerrainTexture?.dispose()
+
+        val terrainColor = when (currentLevelIndex) {
+            0 -> Color(34f / 255f, 139f / 255f, 34f / 255f, 1f)
+            1 -> Color(100f / 255f, 100f / 255f, 100f / 255f, 1f)
+            else -> Color(87f / 255f, 51f / 255f, 35f / 255f, 1f)
+        }
+
+        val pixmap = Pixmap(currentMap.width, currentMap.height, Pixmap.Format.RGBA8888)
+        pixmap.setColor(0f, 0f, 0f, 0f)
+        pixmap.fill()
+        pixmap.setColor(terrainColor)
+
+        for (yTile in 0 until currentMap.height) {
+            for (xTile in 0 until currentMap.width) {
+                if (currentMap.isSolidAt(xTile, yTile)) {
+                    // Pixmap are originea sus-stânga (Y în jos); harta/minimapa folosesc Y în sus
+                    // (yTile=0 = jos), deci inversăm rândul la copiere.
+                    pixmap.drawPixel(xTile, currentMap.height - 1 - yTile)
+                }
+            }
+        }
+
+        miniMapTerrainTexture = Texture(pixmap).apply {
+            setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
+        }
+        pixmap.dispose()
+    }
+
     private fun drawMiniMapOverlay(batch: SpriteBatch) {
         if (batch.isDrawing) batch.end()
 
@@ -1168,29 +1218,20 @@ class GameState(
         shapeRenderer.rect(miniMapX, miniMapY, overlayWidth, overlayHeight)
         shapeRenderer.end()
 
+        // Terenul static - o singură desenare a texturii coapte, nu o buclă width x height.
+        miniMapTerrainTexture?.let { terrain ->
+            batch.projectionMatrix.setToOrtho2D(0f, 0f, w, h)
+            batch.begin()
+            batch.setColor(1f, 1f, 1f, 1f)
+            batch.draw(terrain, miniMapX, miniMapY, overlayWidth, overlayHeight)
+            batch.end()
+        }
+
         val mapScaleX = overlayWidth / mapPixelWidth
         val mapScaleY = overlayHeight / mapPixelHeight
 
+        // Doar elementele care se mișcă (jucător/chei/talisman) rămân desenate live.
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-
-        for (yTile in 0 until currentMap.height) {
-            for (xTile in 0 until currentMap.width) {
-                val tile = currentMap.getTile(xTile, yTile)
-                if (tile.isSolid) {
-                    when (currentLevelIndex) {
-                        0 -> shapeRenderer.color = Color(34f / 255f, 139f / 255f, 34f / 255f, 1f)
-                        1 -> shapeRenderer.color = Color(100f / 255f, 100f / 255f, 100f / 255f, 1f)
-                        else -> shapeRenderer.color = Color(87f / 255f, 51f / 255f, 35f / 255f, 1f)
-                    }
-                    shapeRenderer.rect(
-                        miniMapX + xTile * TS * mapScaleX,
-                        miniMapY + yTile * TS * mapScaleY,
-                        TS * mapScaleX + 1,
-                        TS * mapScaleY + 1
-                    )
-                }
-            }
-        }
 
         shapeRenderer.color = Color.YELLOW
         for (entity in entities) {

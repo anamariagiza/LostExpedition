@@ -29,9 +29,43 @@ class Map(private val refLink: RefLinks, path: String, private val levelIndex: I
     val width: Int = (tiledMap.layers[0] as TiledMapTileLayer).width
     val height: Int = (tiledMap.layers[0] as TiledMapTileLayer).height
 
+    // Precalculată o singură dată la încărcare (aceeași logică de parcurgere a layerelor
+    // ca în getTile()), ca isSolidAt() să fie un lookup fără alocare pentru coliziunile
+    // apelate de zeci de ori pe frame din Player/Agent.
+    private val solidGrid: Array<BooleanArray> = Array(width) { BooleanArray(height) }
+
     init {
         DebugLogger.log("Map", "Loaded map: $path (${width}x${height} tiles, level $levelIndex)")
         TileFactory.clearCache()
+        precomputeSolidGrid()
+    }
+
+    private fun precomputeSolidGrid() {
+        for (x in 0 until width) {
+            for (y in 0 until height) {
+                solidGrid[x][y] = computeIsSolid(x, y)
+            }
+        }
+    }
+
+    /** Aceeași regulă ca în getTile(): dala desenată ultima (cea mai de sus) dictează. */
+    private fun computeIsSolid(x: Int, y: Int): Boolean {
+        var finalIsSolid = false
+        for (layer in tiledMap.layers) {
+            if (layer is TiledMapTileLayer) {
+                val cell = layer.getCell(x, y)
+                if (cell != null && cell.tile != null && cell.tile.id != 0) {
+                    finalIsSolid = TileFactory.getTile(cell.tile.id, levelIndex).isSolid
+                }
+            }
+        }
+        return finalIsSolid
+    }
+
+    /** Lookup rapid, fără alocare - de folosit în calea fierbinte de coliziune. */
+    fun isSolidAt(x: Int, y: Int): Boolean {
+        if (x < 0 || x >= width || y < 0 || y >= height) return true
+        return solidGrid[x][y]
     }
 
     fun update() { }
@@ -143,6 +177,11 @@ class Map(private val refLink: RefLinks, path: String, private val levelIndex: I
                         cell.tile = tile
                     }
                 }
+            }
+            // Ușile schimbă GID-ul la runtime (deschis/închis) - resincronizăm grila
+            // precalculată pentru acest tile, altfel isSolidAt() rămâne cu valoarea veche.
+            if (x in 0 until width && y in 0 until height) {
+                solidGrid[x][y] = computeIsSolid(x, y)
             }
         }
     }

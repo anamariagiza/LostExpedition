@@ -21,8 +21,8 @@ class Agent(
     override var health: Int = if (isBoss) 150 else 75
     private val maxHealth = health
 
-    private val normalSpeed = 1.5f
-    private val chaseSpeed = 3f
+    private val normalSpeed = 90f  // px/s (era 1.5f pe frame, la 60fps = 1.5*60)
+    private val chaseSpeed = 180f  // px/s (era 3f pe frame, la 60fps = 3*60)
     private var currentSpeed = normalSpeed
     private var velocityX = normalSpeed
     private var velocityY = 0f
@@ -86,7 +86,7 @@ class Agent(
     }
 
     private fun updatePatrolMode() {
-        x += velocityX
+        x += velocityX * Gdx.graphics.deltaTime
 
         if (x <= leftBound || x >= rightBound) {
             velocityX = -velocityX
@@ -128,8 +128,9 @@ class Agent(
 
         direction = if (velocityX > 0) Direction.RIGHT else Direction.LEFT
 
-        val newX = x + velocityX
-        val newY = y + velocityY
+        val delta = Gdx.graphics.deltaTime
+        val newX = x + velocityX * delta
+        val newY = y + velocityY * delta
 
         if (!isColliding(newX, y)) x = newX
         if (!isColliding(x, newY)) y = newY
@@ -147,7 +148,7 @@ class Agent(
 
         for (tileY in tileYBottom..tileYTop) {
             for (tileX in tileXLeft..tileXRight) {
-                if (map.getTile(tileX, tileY).isSolid) return true
+                if (map.isSolidAt(tileX, tileY)) return true
             }
         }
 

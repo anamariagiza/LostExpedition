@@ -26,8 +26,8 @@ class Player(
     private val maxHealth = 100
     private var isHurt: Boolean = false
 
-    private val normalSpeed = 3f
-    private val runSpeed = 5f
+    private val normalSpeed = 180f // px/s (era 3f pe frame, la 60fps = 3*60)
+    private val runSpeed = 300f    // px/s (era 5f pe frame, la 60fps = 5*60)
     private var currentSpeed = normalSpeed
     private var xMove = 0f
     private var yMove = 0f
@@ -134,6 +134,11 @@ class Player(
         }
 
         updateDirection()
+
+        // xMove/yMove sunt viteze (px/s) până aici; le convertim în deplasarea
+        // pentru acest frame ca senzația de mișcare să fie identică indiferent de framerate.
+        xMove *= Gdx.graphics.deltaTime
+        yMove *= Gdx.graphics.deltaTime
     }
 
     private fun performAttack() {
@@ -188,9 +193,9 @@ class Player(
         var canMove = true
         for (tileY in tileYBottom..tileYTop) {
             if (xMove > 0) {
-                if (map.getTile(tileXRight, tileY).isSolid) { canMove = false; break }
+                if (map.isSolidAt(tileXRight, tileY)) { canMove = false; break }
             } else {
-                if (map.getTile(tileXLeft, tileY).isSolid) { canMove = false; break }
+                if (map.isSolidAt(tileXLeft, tileY)) { canMove = false; break }
             }
         }
         if (canMove) x = newX
@@ -215,9 +220,9 @@ class Player(
         var canMove = true
         for (tileX in tileXLeft..tileXRight) {
             if (yMove > 0) {
-                if (map.getTile(tileX, tileYTop).isSolid) { canMove = false; break }
+                if (map.isSolidAt(tileX, tileYTop)) { canMove = false; break }
             } else {
-                if (map.getTile(tileX, tileYBottom).isSolid) { canMove = false; break }
+                if (map.isSolidAt(tileX, tileYBottom)) { canMove = false; break }
             }
         }
         if (canMove) y = newY

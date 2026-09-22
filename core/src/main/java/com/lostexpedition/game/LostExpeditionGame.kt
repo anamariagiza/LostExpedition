@@ -2,6 +2,7 @@ package com.lostexpedition.game
 
 import com.badlogic.gdx.ApplicationAdapter
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.lostexpedition.game.graphics.Assets
@@ -21,6 +22,10 @@ class LostExpeditionGame : ApplicationAdapter() {
         DebugLogger.log("LostExpeditionGame", "create() - ANDROID MODE")
         batch = SpriteBatch()
         refLinks = RefLinks(this)
+
+        // Interceptăm tasta/gestul BACK (Android), altfel OS-ul închide direct aplicația
+        // în loc să lase GameState/MenuState să decidă ce se întâmplă.
+        Gdx.input.setCatchKey(Input.Keys.BACK, true)
 
         refLinks.setState(LoadingScreenState(refLinks))
     }
