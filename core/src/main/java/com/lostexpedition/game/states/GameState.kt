@@ -19,6 +19,7 @@ import com.lostexpedition.game.map.FogOfWar
 import com.lostexpedition.game.map.Map
 import com.lostexpedition.game.tiles.Tile
 import com.lostexpedition.game.tiles.TileConstants
+import com.lostexpedition.game.utils.PlayerData
 import com.lostexpedition.game.utils.RefLinks
 import com.lostexpedition.game.utils.SoundManager
 import kotlin.math.abs
@@ -140,8 +141,24 @@ class GameState(
         var playerStartX = 100f
         var playerStartY = 100f
         var loadedHealth = 100
+        var loadedData: PlayerData? = null
 
         currentLevelIndex = if (desiredLevelIndex in levelPaths.indices) desiredLevelIndex else 0
+
+        // Stabilim ÎNTÂI care e nivelul corect (citind salvarea, dacă e cazul) și abia
+        // APOI creăm Map-ul, ca să nu încărcăm harta greșită când levelIndex din DB
+        // diferă de desiredLevelIndex.
+        if (loadPlayerStateFromDb) {
+            val loadedDataList = refLink.databaseManager.loadGameData()
+            if (loadedDataList.isNotEmpty()) {
+                loadedData = loadedDataList[0]
+                currentLevelIndex = loadedData.levelIndex
+            } else {
+                resetToDefaults()
+            }
+        } else {
+            currentLevelIndex = desiredLevelIndex
+        }
 
         currentMap = Map(refLink, levelPaths[currentLevelIndex], currentLevelIndex)
         refLink.map = currentMap
@@ -150,31 +167,27 @@ class GameState(
 
         val TS = TileConstants.TILE_SIZE
 
-        if (loadPlayerStateFromDb) {
-            val loadedDataList = refLink.databaseManager.loadGameData()
-            if (loadedDataList.isNotEmpty()) {
-                val data = loadedDataList[0]
-                currentLevelIndex = data.levelIndex
-                playerStartX = data.playerX
-                playerStartY = data.playerY
-                loadedHealth = data.playerHealth
-                hasLevelKey = data.hasKey
-                hasDoorKeys = data.hasDoorKeys
+        if (loadedData != null) {
+            val data = loadedData
+            playerStartX = data.playerX
+            playerStartY = data.playerY
+            loadedHealth = data.playerHealth
+            hasLevelKey = data.hasKey
+            hasDoorKeys = data.hasDoorKeys
+            hasTalisman = data.hasTalisman
+            caveEntranceUnlocked = data.caveEntranceUnlocked
+            bossDefeated = data.bossDefeated
 
-                if (data.puzzlesSolvedString.isNotEmpty()) {
-                    data.puzzlesSolvedString.split(",").forEach { idString ->
-                        val id = idString.toIntOrNull()
-                        if (id != null && id in 1..TOTAL_PUZZLES_LEVEL2) {
-                            puzzlesSolved[id] = true
-                        }
+            if (data.puzzlesSolvedString.isNotEmpty()) {
+                data.puzzlesSolvedString.split(",").forEach { idString ->
+                    val id = idString.toIntOrNull()
+                    if (id != null && id in 1..TOTAL_PUZZLES_LEVEL2) {
+                        puzzlesSolved[id] = true
                     }
                 }
-                isObjectiveDisplayed = true
-            } else {
-                resetToDefaults()
             }
-        } else {
-            currentLevelIndex = desiredLevelIndex
+            isObjectiveDisplayed = true
+        } else if (!loadPlayerStateFromDb) {
             when (currentLevelIndex) {
                 0 -> {
                     playerStartX = 2f * TS
@@ -194,11 +207,6 @@ class GameState(
         player = Player(refLink, playerStartX, playerStartY)
         player.health = loadedHealth
         refLink.player = player
-
-        // DEBUG - sterge dupa testare
-        if (currentLevelIndex == 1) {
-            hasDoorKeys[0] = true
-        }
 
         refLink.gameCamera.position.set(player.x, player.y, 0f)
         refLink.gameCamera.update()
@@ -221,6 +229,12 @@ class GameState(
         entities.clear()
         loadLevelEntities()
         updateObjective()
+
+        // Restaurăm starea finalChest (relevantă doar pe nivelul 3) după ce entitățile
+        // nivelului au fost create.
+        if (loadedData != null) {
+            finalChest?.setCanInteract(loadedData.finalChestCanInteract)
+        }
 
         // Muzica nivelului curent (music_level1.ogg / music_level2.ogg / music_level3.ogg)
         SoundManager.playMusic(SoundManager.musicForLevel(currentLevelIndex))
@@ -282,7 +296,9 @@ class GameState(
         caveGuardianNPC = NPC(refLink, 93f * TS, topDownY(92))
         entities.add(caveGuardianNPC!!)
 
-        entities.add(Talisman(refLink, 45f * TS, topDownY(52), TextureRegion(Assets.talismanImage)))
+        if (!hasTalisman) {
+            entities.add(Talisman(refLink, 45f * TS, topDownY(52), TextureRegion(Assets.talismanImage)))
+        }
 
         caveEntrance = CaveEntrance(refLink, 91f * TS, topDownY(88), (TS * 2).toInt(), (TS * 2).toInt())
         entities.add(caveEntrance!!)
@@ -773,6 +789,11 @@ class GameState(
         val currentHealth = player.health
 
         // 2. Încărcăm harta nouă fără a distruge GameState-ul curent
+        // Dispunem harta și fog-of-war-ul vechi înainte să fie suprascrise, ca să nu
+        // se scurgă memorie (texturi/tiled map) la fiecare schimbare de nivel.
+        currentMap.dispose()
+        fogOfWar?.dispose()
+
         currentLevelIndex = 1
         initLevelInternal(currentLevelIndex, false)
 
@@ -792,6 +813,10 @@ class GameState(
 
         // Aceeași logică sigură și pentru ultimul nivel
         val currentHealth = player.health
+
+        // Dispunem harta și fog-of-war-ul vechi înainte să fie suprascrise.
+        currentMap.dispose()
+        fogOfWar?.dispose()
 
         currentLevelIndex = 2
         initLevelInternal(currentLevelIndex, false)
@@ -875,13 +900,26 @@ class GameState(
             playerHealth = player.health,
             hasKey = hasLevelKey,
             hasDoorKeys = hasDoorKeys,
-            puzzlesSolvedString = solvedPuzzlesString
+            puzzlesSolvedString = solvedPuzzlesString,
+            hasTalisman = hasTalisman,
+            caveEntranceUnlocked = caveEntranceUnlocked,
+            bossDefeated = bossDefeated,
+            finalChestCanInteract = finalChest?.canInteract() ?: false
         )
     }
 
     fun getMap() = currentMap
     fun getEntities() = entities
     fun getCurrentLevel(): Int = currentLevelIndex
+
+    override fun dispose() {
+        currentMap.dispose()
+        fogOfWar?.dispose()
+        font.dispose()
+        shapeRenderer.dispose()
+        // touchController și Assets sunt la nivel de aplicație (RefLinks/LostExpeditionGame),
+        // nu per GameState, deci nu se dispun aici.
+    }
 
     override fun render(batch: SpriteBatch) {
         val camera = refLink.gameCamera

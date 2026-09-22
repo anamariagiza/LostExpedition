@@ -32,6 +32,7 @@ class FogOfWar(
 ) {
     private val visionRadiusTiles = 5
     private var gradientTexture: Texture
+    private val shapeRenderer = ShapeRenderer()
 
     /** Tracks which tiles have been revealed (permanent exploration) */
     private val revealedTiles: Array<BooleanArray> = Array(mapWidth) { BooleanArray(mapHeight) { false } }
@@ -162,7 +163,6 @@ class FogOfWar(
         Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
 
-        val shapeRenderer = ShapeRenderer()
         shapeRenderer.projectionMatrix = camera.combined
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
 
@@ -190,7 +190,6 @@ class FogOfWar(
         shapeRenderer.rect(lightX, 0f, lightRadius, lightY)
 
         shapeRenderer.end()
-        shapeRenderer.dispose() // Curățăm ShapeRenderer local
 
         // --- DESENĂM GRADIENTUL ---
         batch.begin() // Deschidem batch-ul
@@ -247,5 +246,6 @@ class FogOfWar(
 
     fun dispose() {
         gradientTexture.dispose()
+        shapeRenderer.dispose()
     }
 }

@@ -32,6 +32,8 @@ class Chest(
         canInteract = interact
     }
 
+    fun canInteract(): Boolean = canInteract
+
     override fun update() {
         if (canInteract && !isOpen) {
             val player = refLink.player

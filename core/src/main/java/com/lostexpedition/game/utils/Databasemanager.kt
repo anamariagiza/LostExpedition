@@ -28,7 +28,11 @@ class DatabaseManager {
         playerHealth: Int,
         hasKey: Boolean,
         hasDoorKeys: BooleanArray,
-        puzzlesSolvedString: String
+        puzzlesSolvedString: String,
+        hasTalisman: Boolean,
+        caveEntranceUnlocked: Boolean,
+        bossDefeated: Boolean,
+        finalChestCanInteract: Boolean
     ) {
         val prefs = getGamePrefs()
         prefs.putInteger("levelIndex", levelIndex)
@@ -43,6 +47,11 @@ class DatabaseManager {
         prefs.putString("hasDoorKeys", doorKeysStr)
 
         prefs.putString("puzzlesSolved", puzzlesSolvedString)
+
+        prefs.putBoolean("hasTalisman", hasTalisman)
+        prefs.putBoolean("caveEntranceUnlocked", caveEntranceUnlocked)
+        prefs.putBoolean("bossDefeated", bossDefeated)
+        prefs.putBoolean("finalChestCanInteract", finalChestCanInteract)
 
         prefs.flush() // Scrie fizic pe disc
         Gdx.app.log("DatabaseManager", "Joc salvat complet!")
@@ -73,9 +82,17 @@ class DatabaseManager {
             if (i < doorKeysList.size) finalDoorKeys[i] = doorKeysList[i]
         }
 
+        val hasTalisman = prefs.getBoolean("hasTalisman", false)
+        val caveEntranceUnlocked = prefs.getBoolean("caveEntranceUnlocked", false)
+        val bossDefeated = prefs.getBoolean("bossDefeated", false)
+        val finalChestCanInteract = prefs.getBoolean("finalChestCanInteract", false)
+
         // Returnăm o listă cu un singur element (pentru compatibilitate cu forEach din GameState)
         return listOf(
-            PlayerData(levelIndex, score, px, py, hp, key, finalDoorKeys, puzzles)
+            PlayerData(
+                levelIndex, score, px, py, hp, key, finalDoorKeys, puzzles,
+                hasTalisman, caveEntranceUnlocked, bossDefeated, finalChestCanInteract
+            )
         )
     }
 
@@ -116,7 +133,11 @@ data class PlayerData(
     val playerHealth: Int,
     val hasKey: Boolean,
     val hasDoorKeys: BooleanArray,
-    val puzzlesSolvedString: String
+    val puzzlesSolvedString: String,
+    val hasTalisman: Boolean,
+    val caveEntranceUnlocked: Boolean,
+    val bossDefeated: Boolean,
+    val finalChestCanInteract: Boolean
 )
 
 data class SettingsData(
