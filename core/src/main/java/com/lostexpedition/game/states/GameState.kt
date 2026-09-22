@@ -94,8 +94,17 @@ class GameState(
     private val shapeRenderer = ShapeRenderer()
     private val currentZoom = 0.9f
 
-    // ✅ NOU: Bounds pentru butonul de pauză
+    // Paleta comună pentru tot HUD-ul (health bar, cluster dreapta-sus, overlay minihartă)
+    // ca toate elementele să arate ca un singur sistem vizual.
+    private val hudPanelColor = Color(0f, 0f, 0f, 0.55f)
+    private val hudPanelColorActive = Color(0f, 0f, 0f, 0.8f)
+    private val hudBorderColor = Color(1f, 1f, 1f, 0.85f)
+
+    // Bounds pentru clusterul de butoane din dreapta sus (minihartă / pauză / setări)
+    private val mapButtonBounds = Rectangle()
     private val pauseButtonBounds = Rectangle()
+    private val settingsButtonBounds = Rectangle()
+    private var showMiniMapOverlay = false
 
     init {
         refLink.gameState = this
@@ -406,16 +415,25 @@ class GameState(
             collectionMessage = null
         }
 
-        // ✅ CHECK PAUSE BUTTON INPUT
+        // ✅ CHECK CLUSTER BUTOANE HUD (minihartă / pauză / setări)
         if (Gdx.input.justTouched()) {
             val touchX = Gdx.input.x.toFloat()
             val touchY = Gdx.graphics.height - Gdx.input.y.toFloat() // Inversăm Y pentru UI
 
-            if (pauseButtonBounds.contains(touchX, touchY)) {
+            if (mapButtonBounds.contains(touchX, touchY)) {
+                showMiniMapOverlay = !showMiniMapOverlay
+            } else if (pauseButtonBounds.contains(touchX, touchY)) {
                 // Salvăm jocul înainte de pauză pentru siguranță
                 saveCurrentState()
                 refLink.setState(PauseState(refLink))
                 return // Oprim update-ul curent
+            } else if (settingsButtonBounds.contains(touchX, touchY)) {
+                saveCurrentState()
+                refLink.setState(SettingsState(refLink))
+                return // Oprim update-ul curent
+            } else if (showMiniMapOverlay) {
+                // Orice atingere în afara clusterului închide overlay-ul de minihartă
+                showMiniMapOverlay = false
             }
         }
 
@@ -935,62 +953,185 @@ class GameState(
         }
 
         batch.end()
-        drawMiniMap(batch)
-        drawPauseButton(batch) // ✅ Apelăm desenarea butonului
+
+        if (showMiniMapOverlay) drawMiniMapOverlay(batch)
+        drawTopRightButtons(batch)
     }
 
     private fun drawHealthBar(batch: SpriteBatch) {
         if (batch.isDrawing) batch.end()
 
-        val barWidth = 150f
-        val barHeight = 20f
-        val x = 10f
-        val y = Gdx.graphics.height - 30f
+        val h = Gdx.graphics.height.toFloat()
+        val w = Gdx.graphics.width.toFloat()
 
-        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+        // Layout relativ la înălțimea ecranului (ca la joystick/butoane), nu pixeli ficși,
+        // ca bara să rămână complet vizibilă pe orice rezoluție/aspect ratio. Padding mai mare
+        // decât la clusterul din dreapta sus, pentru că o bară dreptunghiulară lipită de colț
+        // se simte vizual mult mai "înghesuită" decât un cerc la aceeași distanță de margine.
+        val padding = MathUtils.clamp(h * 0.055f, 32f, 64f)
+        val barWidth = MathUtils.clamp(h * 0.34f, 160f, 260f)
+        val barHeight = MathUtils.clamp(h * 0.045f, 22f, 34f)
+        val x = padding
+        val y = h - padding - barHeight
+
+        val maxHealth = player.getMaxHealth()
+        val healthPercent = (player.health.toFloat() / maxHealth.toFloat()).coerceIn(0f, 1f)
+        val fillColor = when {
+            healthPercent > 0.5f -> Color(0.25f, 0.75f, 0.25f, 1f)
+            healthPercent > 0.25f -> Color(0.9f, 0.65f, 0.1f, 1f)
+            else -> Color(0.85f, 0.2f, 0.2f, 1f)
+        }
+
+        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, w, h)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-        shapeRenderer.color = Color.DARK_GRAY
+        shapeRenderer.color = hudPanelColor
         shapeRenderer.rect(x, y, barWidth, barHeight)
-
-        val currentHealthWidth = (player.health.toFloat() / 100f) * barWidth
-        shapeRenderer.color = Color.GREEN
-        shapeRenderer.rect(x, y, currentHealthWidth, barHeight)
+        shapeRenderer.color = fillColor
+        shapeRenderer.rect(x, y, barWidth * healthPercent, barHeight)
         shapeRenderer.end()
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
-        shapeRenderer.color = Color.WHITE
+        shapeRenderer.color = hudBorderColor
         shapeRenderer.rect(x, y, barWidth, barHeight)
+        shapeRenderer.end()
+
+        // Valoare HP curent/maxim, ca bara să nu fie doar o dungă de culoare fără context.
+        batch.begin()
+        font.data.setScale(0.7f)
+        font.color = Color.WHITE
+        val hpText = "${player.health}/$maxHealth"
+        val layout = GlyphLayout(font, hpText)
+        val textX = x + (barWidth - layout.width) / 2f
+        val textY = y + (barHeight + layout.height) / 2f
+        font.draw(batch, hpText, textX, textY)
+        font.data.setScale(1f)
+        batch.end()
+    }
+
+    // Cluster din dreapta sus: minihartă / pauză / setări.
+    // Aceeași familie vizuală ca butoanele de atac/interacțiune din TouchController:
+    // cercuri cu fundal semi-transparent, contur subțire, iconiță simplă în interior.
+    private fun drawTopRightButtons(batch: SpriteBatch) {
+        if (batch.isDrawing) batch.end()
+
+        val h = Gdx.graphics.height.toFloat()
+        val w = Gdx.graphics.width.toFloat()
+        val padding = MathUtils.clamp(h * 0.025f, 16f, 32f)
+        val radius = MathUtils.clamp(h * 0.045f, 26f, 42f)
+        val gap = radius * 0.6f
+
+        val cx = w - padding - radius
+        val mapCy = h - padding - radius
+        val pauseCy = mapCy - radius * 2f - gap
+        val settingsCy = pauseCy - radius * 2f - gap
+
+        mapButtonBounds.set(cx - radius, mapCy - radius, radius * 2f, radius * 2f)
+        pauseButtonBounds.set(cx - radius, pauseCy - radius, radius * 2f, radius * 2f)
+        settingsButtonBounds.set(cx - radius, settingsCy - radius, radius * 2f, radius * 2f)
+
+        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, w, h)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+        shapeRenderer.color = if (showMiniMapOverlay) hudPanelColorActive else hudPanelColor
+        shapeRenderer.circle(cx, mapCy, radius, 32)
+        shapeRenderer.color = hudPanelColor
+        shapeRenderer.circle(cx, pauseCy, radius, 32)
+        shapeRenderer.circle(cx, settingsCy, radius, 32)
+        shapeRenderer.end()
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+        shapeRenderer.color = hudBorderColor
+        shapeRenderer.circle(cx, mapCy, radius, 32)
+        shapeRenderer.circle(cx, pauseCy, radius, 32)
+        shapeRenderer.circle(cx, settingsCy, radius, 32)
+        shapeRenderer.end()
+
+        drawMapIcon(cx, mapCy, radius)
+        drawPauseIcon(cx, pauseCy, radius)
+        drawSettingsIcon(cx, settingsCy, radius)
+    }
+
+    private fun drawMapIcon(cx: Float, cy: Float, radius: Float) {
+        val s = radius * 0.45f
+        val gap = s * 0.3f
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+        shapeRenderer.color = hudBorderColor
+        shapeRenderer.rect(cx - s - gap / 2f, cy + gap / 2f, s, s)
+        shapeRenderer.rect(cx + gap / 2f, cy + gap / 2f, s, s)
+        shapeRenderer.rect(cx - s - gap / 2f, cy - s - gap / 2f, s, s)
+        shapeRenderer.rect(cx + gap / 2f, cy - s - gap / 2f, s, s)
         shapeRenderer.end()
     }
 
-    private fun drawMiniMap(batch: SpriteBatch) {
+    private fun drawPauseIcon(cx: Float, cy: Float, radius: Float) {
+        val barWidth = radius * 0.22f
+        val barHeight = radius * 0.9f
+        val gap = radius * 0.18f
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+        shapeRenderer.color = hudBorderColor
+        shapeRenderer.rect(cx - gap / 2f - barWidth, cy - barHeight / 2f, barWidth, barHeight)
+        shapeRenderer.rect(cx + gap / 2f, cy - barHeight / 2f, barWidth, barHeight)
+        shapeRenderer.end()
+    }
+
+    private fun drawSettingsIcon(cx: Float, cy: Float, radius: Float) {
+        val lineLength = radius * 0.9f
+        val lineGap = radius * 0.35f
+        val knobRadius = radius * 0.09f
+        val startX = cx - lineLength / 2f
+        val endX = cx + lineLength / 2f
+        val ys = floatArrayOf(cy + lineGap, cy, cy - lineGap)
+        val knobOffsets = floatArrayOf(0.3f, 0.7f, 0.5f)
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+        shapeRenderer.color = hudBorderColor
+        for (y in ys) {
+            shapeRenderer.rectLine(startX, y, endX, y, 2f)
+        }
+        for (i in ys.indices) {
+            val knobX = startX + lineLength * knobOffsets[i]
+            shapeRenderer.circle(knobX, ys[i], knobRadius, 12)
+        }
+        shapeRenderer.end()
+    }
+
+    // Overlay de minihartă, deschis/închis din butonul din cluster. Reutilizează
+    // exact logica de desenare a hărții de dinainte, doar centrată și mai mare.
+    private fun drawMiniMapOverlay(batch: SpriteBatch) {
         if (batch.isDrawing) batch.end()
 
-        val miniMapHeight = 150f
+        val w = Gdx.graphics.width.toFloat()
+        val h = Gdx.graphics.height.toFloat()
+
         val TS = TileConstants.TILE_SIZE
         val mapPixelWidth = currentMap.width * TS
         val mapPixelHeight = currentMap.height * TS
-        val miniMapWidth = (mapPixelWidth / mapPixelHeight) * miniMapHeight
-        val padding = 10f
 
-        val miniMapX = Gdx.graphics.width - miniMapWidth - padding
-        val miniMapY = Gdx.graphics.height - miniMapHeight - padding
+        val overlayHeight = h * 0.55f
+        val overlayWidth = (mapPixelWidth / mapPixelHeight) * overlayHeight
+        val miniMapX = (w - overlayWidth) / 2f
+        val miniMapY = (h - overlayHeight) / 2f
 
-        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, w, h)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-        shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)
-        shapeRenderer.rect(miniMapX, miniMapY, miniMapWidth, miniMapHeight)
+        shapeRenderer.color = Color(0f, 0f, 0f, 0.6f)
+        shapeRenderer.rect(0f, 0f, w, h)
+        shapeRenderer.color = hudPanelColorActive
+        shapeRenderer.rect(miniMapX, miniMapY, overlayWidth, overlayHeight)
         shapeRenderer.end()
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
-        shapeRenderer.color = Color.WHITE
-        shapeRenderer.rect(miniMapX, miniMapY, miniMapWidth, miniMapHeight)
+        shapeRenderer.color = hudBorderColor
+        shapeRenderer.rect(miniMapX, miniMapY, overlayWidth, overlayHeight)
         shapeRenderer.end()
 
-        val mapScaleX = miniMapWidth / mapPixelWidth
-        val mapScaleY = miniMapHeight / mapPixelHeight
+        val mapScaleX = overlayWidth / mapPixelWidth
+        val mapScaleY = overlayHeight / mapPixelHeight
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
 
@@ -1018,66 +1159,24 @@ class GameState(
             if ((entity is Key || entity is Talisman)) {
                 val entityMiniMapX = miniMapX + entity.x * mapScaleX
                 val entityMiniMapY = miniMapY + entity.y * mapScaleY
-                shapeRenderer.circle(entityMiniMapX, entityMiniMapY, 3f)
+                shapeRenderer.circle(entityMiniMapX, entityMiniMapY, 4f)
             }
         }
 
         shapeRenderer.color = Color.CYAN
         val playerMiniMapX = miniMapX + player.x * mapScaleX
         val playerMiniMapY = miniMapY + player.y * mapScaleY
-        shapeRenderer.circle(playerMiniMapX, playerMiniMapY, 5f)
+        shapeRenderer.circle(playerMiniMapX, playerMiniMapY, 6f)
 
         shapeRenderer.end()
-    }
 
-    // ✅ NOU: Funcție pentru desenarea butonului de pauză sub minimapă
-    private fun drawPauseButton(batch: SpriteBatch) {
-        // Trebuie să ne asigurăm că SpriteBatch este oprit pentru ShapeRenderer
-        if (batch.isDrawing) batch.end()
-
-        val miniMapHeight = 150f
-        val TS = TileConstants.TILE_SIZE
-        val mapPixelWidth = currentMap.width * TS
-        val mapPixelHeight = currentMap.height * TS
-        val miniMapWidth = (mapPixelWidth / mapPixelHeight) * miniMapHeight
-        val padding = 10f
-
-        val miniMapX = Gdx.graphics.width - miniMapWidth - padding
-        val miniMapY = Gdx.graphics.height - miniMapHeight - padding
-
-        // Calcul poziție și dimensiune buton
-        val buttonWidth = miniMapWidth // Lățime egală cu minimapa
-        val buttonHeight = 40f
-        val buttonX = miniMapX
-        val buttonY = miniMapY - buttonHeight - padding // Sub minimapă
-
-        // Actualizare bounds pentru detectarea click-ului
-        pauseButtonBounds.set(buttonX, buttonY, buttonWidth, buttonHeight)
-
-        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
-
-        // 1. Fundal buton
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-        shapeRenderer.color = Color.DARK_GRAY
-        shapeRenderer.rect(buttonX, buttonY, buttonWidth, buttonHeight)
-        shapeRenderer.end()
-
-        // 2. Contur buton
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
-        shapeRenderer.color = Color.WHITE
-        shapeRenderer.rect(buttonX, buttonY, buttonWidth, buttonHeight)
-        shapeRenderer.end()
-
-        // 3. Text "PAUZĂ"
         batch.begin()
-        font.data.setScale(0.8f) // Font mai mic pentru buton
+        font.data.setScale(0.6f)
         font.color = Color.WHITE
-        val text = "PAUZĂ"
-        val layout = GlyphLayout(font, text)
-        val textX = buttonX + (buttonWidth - layout.width) / 2
-        val textY = buttonY + (buttonHeight + layout.height) / 2
-        font.draw(batch, text, textX, textY)
-        font.data.setScale(1f) // Resetare scală
+        val hint = "Atinge oriunde pentru a inchide"
+        val hintLayout = GlyphLayout(font, hint)
+        font.draw(batch, hint, (w - hintLayout.width) / 2f, miniMapY - 10f)
+        font.data.setScale(1f)
         batch.end()
     }
 }

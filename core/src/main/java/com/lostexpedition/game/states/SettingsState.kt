@@ -77,7 +77,8 @@ class SettingsState(refLink: RefLinks) : State(refLink) {
             else if (backBtnBounds.contains(touchX, touchY)) {
                 // ✅ RESTAURĂM PROIECȚIA ÎNAINTE DE IEȘIRE
                 restoreProjection()
-                refLink.setState(MenuState(refLink))
+                // Ne întoarcem la ecranul din care am intrat (meniu SAU joc)
+                refLink.setState(refLink.getPreviousState() ?: MenuState(refLink))
             }
         }
     }
