@@ -23,7 +23,7 @@ The music files were re-encoded to OGG Vorbis (quality 3, 44.1 kHz) to keep the 
 | `sfx_click.ogg` | `click_001.ogg` | [Interface Sounds](https://kenney.nl/assets/interface-sounds) |
 | `sfx_puzzle_success.ogg` | `confirmation_002.ogg` | Interface Sounds |
 | `sfx_puzzle_fail.ogg` | `error_006.ogg` | Interface Sounds |
-| `sfx_attack.ogg` | `knifeSlice.ogg` | [RPG Audio](https://kenney.nl/assets/rpg-audio) |
+| `sfx_attack.ogg` | `cloth4.ogg` (punch whoosh) | [RPG Audio](https://kenney.nl/assets/rpg-audio) |
 | `sfx_key.ogg` | `handleCoins.ogg` | RPG Audio |
 | `sfx_door.ogg` | `doorOpen_1.ogg` | RPG Audio |
 | `sfx_chest.ogg` | `creak1.ogg` | RPG Audio |

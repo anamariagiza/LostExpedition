@@ -19,7 +19,7 @@ object SoundManager {
 
     // ==================== EFECTE SONORE (placeholder-e) ====================
     const val SFX_CLICK = "sfx_click.ogg"                       // click pe butoane de meniu
-    const val SFX_ATTACK = "sfx_attack.ogg"                     // atacul jucatorului (sabie)
+    const val SFX_ATTACK = "sfx_attack.ogg"                     // atacul jucatorului (pumn)
     const val SFX_PLAYER_HURT = "sfx_player_hurt.ogg"           // jucatorul ia damage
     const val SFX_ENEMY_HURT = "sfx_enemy_hurt.ogg"             // inamicul/boss-ul ia damage
     const val SFX_KEY = "sfx_key.ogg"                           // cheie/talisman colectat
