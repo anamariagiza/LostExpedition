@@ -52,6 +52,10 @@ class GameState(
     private var currentLevelIndex: Int = startLevel
     private var hasLevelKey = false
     var hasDoorKeys = BooleanArray(7) { false }
+    // Ușile deja deschise (0..5 = ușile din nivelul 2, 6 = ușa finală din nivelul 3).
+    // Se salvează, ca la reîncărcare harta să fie readusă în aceeași stare.
+    var doorsOpened = BooleanArray(7) { false }
+    private var wordPuzzleSolved = false
     private var hasTalisman = false
     private var caveEntranceUnlocked = false
     private var currentObjective = "Adună cheia și talismanul Lunii."
@@ -192,6 +196,8 @@ class GameState(
             hasTalisman = data.hasTalisman
             caveEntranceUnlocked = data.caveEntranceUnlocked
             bossDefeated = data.bossDefeated
+            doorsOpened = data.doorsOpened
+            wordPuzzleSolved = data.wordPuzzleSolved
 
             if (data.puzzlesSolvedString.isNotEmpty()) {
                 data.puzzlesSolvedString.split(",").forEach { idString ->
@@ -243,6 +249,7 @@ class GameState(
 
         entities.clear()
         loadLevelEntities()
+        restoreOpenedDoors()
         updateObjective()
 
         // Restaurăm starea finalChest (relevantă doar pe nivelul 3) după ce entitățile
@@ -262,6 +269,9 @@ class GameState(
         puzzlesSolved = BooleanArray(TOTAL_PUZZLES_LEVEL2 + 1) { false }
         hasTalisman = false
         caveEntranceUnlocked = false
+        doorsOpened = BooleanArray(7) { false }
+        wordPuzzleSolved = false
+        bossDefeated = false
     }
 
     private fun loadLevelEntities() {
@@ -311,7 +321,8 @@ class GameState(
         caveGuardianNPC = NPC(refLink, 93f * TS, topDownY(92))
         entities.add(caveGuardianNPC!!)
 
-        if (!hasTalisman) {
+        // După ce a fost predat NPC-ului (intrarea deblocată), talismanul nu mai reapare.
+        if (!hasTalisman && !caveEntranceUnlocked) {
             entities.add(Talisman(refLink, 45f * TS, topDownY(52), TextureRegion(Assets.talismanImage)))
         }
 
@@ -356,8 +367,9 @@ class GameState(
 
         entities.add(LevelExit(refLink, 110f * TS, topDownY(14), (TS * 2).toInt(), TS.toInt()))
 
+        // Cheia unui puzzle rezolvat reapare doar dacă nu a fost încă ridicată și nici folosită.
         for (i in 1..TOTAL_PUZZLES_LEVEL2) {
-            if (isPuzzleSolved(i)) {
+            if (isPuzzleSolved(i) && !hasDoorKeys[i] && !doorsOpened[i]) {
                 val keyTileX = puzzleKeyPositions[i - 1][0]
                 val keyTileY = puzzleKeyPositions[i - 1][1]
                 entities.add(Key(refLink, keyTileX * TS, topDownY(keyTileY), Assets.keyImage, i))
@@ -383,7 +395,11 @@ class GameState(
             )
         )
 
-        entities.add(PuzzleTrigger(refLink, 75f * TS, topDownY(26), TS.toInt(), TS.toInt(), 99))
+        if (!wordPuzzleSolved) {
+            entities.add(PuzzleTrigger(refLink, 75f * TS, topDownY(26), TS.toInt(), TS.toInt(), 99))
+        } else if (!hasDoorKeys[6] && !doorsOpened[6]) {
+            spawnFinalKey()
+        }
 
         finalChest = Chest(refLink, 37f * TS, topDownY(3), TS.toInt(), TS.toInt())
         finalChest?.setCanInteract(false)
@@ -428,8 +444,11 @@ class GameState(
             }
         }
 
-        finalBoss = Agent(refLink, 36f * TS, topDownY(22), 36f * TS, 43f * TS, true)
-        entities.add(finalBoss!!)
+        finalBoss = null
+        if (!bossDefeated) {
+            finalBoss = Agent(refLink, 36f * TS, topDownY(22), 36f * TS, 43f * TS, true)
+            entities.add(finalBoss!!)
+        }
 
         val woodSign3 = DecorativeObject(
             refLink, 37f * TS, topDownY(56), 64, 64,
@@ -753,28 +772,49 @@ class GameState(
 
     private fun openDoor(doorIndex: Int) {
         if (doorIndex in hasDoorKeys.indices && hasDoorKeys[doorIndex]) {
-            val doorCoords = puzzleDoorPositions[doorIndex]
-            if (doorCoords.size == 8) {
-                // AICI TREBUIE SĂ PUI GID-URILE PENTRU UȘA DESCHISĂ!
-                // Caută în Tiled care sunt ID-urile pentru ușa deschisă (stânga-sus, dreapta-sus etc.)
-                // Notă: Pune ID-ul din Tiled + 1 (dacă în Tiled scrie 73, aici pui 74)
-
-                val openTopLeft = 60     // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (stânga sus)
-                val openTopRight = 61    // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (dreapta sus)
-                val openBotLeft = 92    // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (stânga jos)
-                val openBotRight = 93   // <-- MODIFICĂ cu GID-ul tău pentru ușa deschisă (dreapta jos)
-
-                // Înlocuim cele 4 bucăți ale ușii închise cu cele ale ușii deschise
-                changeTileGidJava(doorCoords[0], doorCoords[1], openTopLeft, 1)
-                changeTileGidJava(doorCoords[2], doorCoords[3], openTopRight, 1)
-                changeTileGidJava(doorCoords[4], doorCoords[5], openBotLeft, 1)
-                changeTileGidJava(doorCoords[6], doorCoords[7], openBotRight, 1)
-
+            if (applyDoorOpenTiles(doorIndex)) {
+                doorsOpened[doorIndex] = true
                 hasDoorKeys[doorIndex] = false
                 collectionMessage = "Ușa s-a deschis!"
                 collectionMessageTime = gameTimeMs
                 SoundManager.playSfx(SoundManager.SFX_DOOR)
             }
+        }
+    }
+
+    /** Înlocuiește cele 4 dale ale ușii [doorIndex] (nivelul 2) cu cele ale ușii deschise. */
+    private fun applyDoorOpenTiles(doorIndex: Int): Boolean {
+        val doorCoords = puzzleDoorPositions[doorIndex]
+        if (doorCoords.size != 8) return false
+
+        // GID-urile ușii deschise (ID-ul din Tiled + 1): stânga-sus, dreapta-sus, stânga-jos, dreapta-jos
+        val openTopLeft = 60
+        val openTopRight = 61
+        val openBotLeft = 92
+        val openBotRight = 93
+
+        changeTileGidJava(doorCoords[0], doorCoords[1], openTopLeft, 1)
+        changeTileGidJava(doorCoords[2], doorCoords[3], openTopRight, 1)
+        changeTileGidJava(doorCoords[4], doorCoords[5], openBotLeft, 1)
+        changeTileGidJava(doorCoords[6], doorCoords[7], openBotRight, 1)
+        return true
+    }
+
+    private fun applyFinalDoorOpenTiles() {
+        val layerIndex = 2
+        changeTileGidJava(39, 6, 74, layerIndex)
+        changeTileGidJava(40, 6, 75, layerIndex)
+        changeTileGidJava(39, 7, 120, layerIndex)
+        changeTileGidJava(40, 7, 121, layerIndex)
+    }
+
+    /** La (re)încărcarea unui nivel, redeschide pe hartă ușile care fuseseră deja deschise. */
+    private fun restoreOpenedDoors() {
+        when (currentLevelIndex) {
+            1 -> for (i in puzzleDoorPositions.indices) {
+                if (doorsOpened[i]) applyDoorOpenTiles(i)
+            }
+            2 -> if (doorsOpened[6]) applyFinalDoorOpenTiles()
         }
     }
 
@@ -803,11 +843,8 @@ class GameState(
     }
 
     private fun openFinalDoor() {
-        val layerIndex = 2
-        changeTileGidJava(39, 6, 74, layerIndex)
-        changeTileGidJava(40, 6, 75, layerIndex)
-        changeTileGidJava(39, 7, 120, layerIndex)
-        changeTileGidJava(40, 7, 121, layerIndex)
+        applyFinalDoorOpenTiles()
+        doorsOpened[6] = true
 
         if (hasDoorKeys.size > 6) {
             hasDoorKeys[6] = false
@@ -882,6 +919,17 @@ class GameState(
         }
     }
 
+    /** Apelat de WordPuzzleState la rezolvare: cheia finală (id 6) apare la (77, 31) pe grilă. */
+    fun onWordPuzzleSolved() {
+        wordPuzzleSolved = true
+        spawnFinalKey()
+    }
+
+    private fun spawnFinalKey() {
+        val TS = TileConstants.TILE_SIZE
+        entities.add(Key(refLink, 77f * TS, topDownY(31), Assets.keyImage, 6))
+    }
+
     fun onPuzzleFailure() {
         player.takeDamage(20, ignoreInvulnerability = true)
 
@@ -939,7 +987,9 @@ class GameState(
             hasTalisman = hasTalisman,
             caveEntranceUnlocked = caveEntranceUnlocked,
             bossDefeated = bossDefeated,
-            finalChestCanInteract = finalChest?.canInteract() ?: false
+            finalChestCanInteract = finalChest?.canInteract() ?: false,
+            doorsOpened = doorsOpened,
+            wordPuzzleSolved = wordPuzzleSolved
         )
     }
 

@@ -9,10 +9,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Rectangle
-import com.lostexpedition.game.entities.Key
-import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.graphics.UiFont
-import com.lostexpedition.game.tiles.TileConstants
 import com.lostexpedition.game.utils.RefLinks
 import com.lostexpedition.game.utils.SoundManager
 
@@ -114,12 +111,7 @@ class WordPuzzleState(refLink: RefLinks) : State(refLink) {
 
             val prevState = State.getPreviousState()
             if (prevState is GameState) {
-                // Cheia finala (id 6) apare la (77, 31) in coordonate de grila.
-                // Atentie: harta Kotlin foloseste y-in-sus, deci convertim ca in topDownY().
-                val ts = TileConstants.TILE_SIZE
-                val keyY = (prevState.getMap().height - 1 - 31) * ts
-                val finalKey = Key(refLink, 77f * ts, keyY, Assets.keyImage, 6)
-                prevState.addEntity(finalKey)
+                prevState.onWordPuzzleSolved()
             }
 
             refLink.setState(prevState!!)
