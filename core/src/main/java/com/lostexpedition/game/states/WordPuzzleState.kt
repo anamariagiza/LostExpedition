@@ -25,12 +25,16 @@ class WordPuzzleState(refLink: RefLinks) : State(refLink) {
     private val currentInput = StringBuilder()
     private var solved = false
 
-    private val puzzleStartTime = System.currentTimeMillis()
+    // Ceasul puzzle-ului (ms), avansat doar din update(delta): timpul nu curge cât timp
+    // aplicația e în fundal (ex. un apel primit în timpul puzzle-ului).
+    private var clockMs = 0L
+
+    private val puzzleStartTime = clockMs
     private val timeLimitMs = 100000L
     private val damagePenalty = 20
 
-    private var lastClickTime = 0L
     private val clickCooldown = 200L
+    private var lastClickTime = -clickCooldown
 
     /** Factor de scalare UI: 1.0 la 720p, ~1.5 pe un telefon 1080p. */
     private val s: Float = UiFont.scale()
@@ -69,19 +73,20 @@ class WordPuzzleState(refLink: RefLinks) : State(refLink) {
     }
 
     override fun update(delta: Float) {
+        clockMs += (delta * 1000f).toLong()
         if (solved) return
 
-        if (System.currentTimeMillis() - puzzleStartTime > timeLimitMs) {
+        if (clockMs - puzzleStartTime > timeLimitMs) {
             SoundManager.playSfx(SoundManager.SFX_PUZZLE_FAIL)
-            refLink.player?.takeDamage(damagePenalty)
+            refLink.player?.takeDamage(damagePenalty, ignoreInvulnerability = true)
             State.getPreviousState()?.let { refLink.setState(it) }
             return
         }
 
         if (Gdx.input.justTouched() &&
-            System.currentTimeMillis() - lastClickTime > clickCooldown) {
+            clockMs - lastClickTime > clickCooldown) {
 
-            lastClickTime = System.currentTimeMillis()
+            lastClickTime = clockMs
             val touchX = Gdx.input.x.toFloat()
             val touchY = Gdx.graphics.height - Gdx.input.y.toFloat()
 
@@ -147,7 +152,7 @@ class WordPuzzleState(refLink: RefLinks) : State(refLink) {
         titleFont.draw(batch, hintText, (screenWidth - titleLayout.width) / 2f, screenHeight - 40f * s)
 
         // Timerul
-        val timeLeftMs = timeLimitMs - (System.currentTimeMillis() - puzzleStartTime)
+        val timeLeftMs = timeLimitMs - (clockMs - puzzleStartTime)
         val timeLeftSec = (timeLeftMs / 1000f).coerceAtLeast(0f)
         val timerStr = "Timp: %.1f".format(timeLeftSec)
         val timerLayout = GlyphLayout(timerFont, timerStr)

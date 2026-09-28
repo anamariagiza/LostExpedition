@@ -50,6 +50,11 @@ class Player(
     private val attackRange = 80f
     private val attackDamage = 25
 
+    // Invulnerabilitate scurtă după o lovitură, ca două surse de damage din același
+    // moment (capcană + agent) să nu scoată viața de două ori. Jucătorul clipește cât durează.
+    private val invulnerabilityDuration = 0.8f
+    private var invulnerableTime = 0f
+
     private var isJumping = false
     private var jumpTime = 0f
     private val jumpDuration = 0.5f
@@ -75,6 +80,10 @@ class Player(
                 isAttacking = false
                 attackTime = 0f
             }
+        }
+
+        if (invulnerableTime > 0f) {
+            invulnerableTime -= Gdx.graphics.deltaTime
         }
 
         if (isJumping) {
@@ -129,6 +138,12 @@ class Player(
             if (yMove != 0f) yMove = (yMove / normalSpeed) * runSpeed
         }
 
+        // Pe diagonală (W+D etc.) normalizăm, altfel jucătorul merge de √2 ori mai repede.
+        if (xMove != 0f && yMove != 0f && !touchController.isJoystickActive) {
+            xMove *= DIAGONAL_FACTOR
+            yMove *= DIAGONAL_FACTOR
+        }
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && !isAttacking) {
             performAttack()
         }
@@ -146,23 +161,25 @@ class Player(
         attackTime = 0f
         SoundManager.playSfx(SoundManager.SFX_ATTACK)
 
-        val attackBounds = Rectangle(
-            if (facingRight) x + width else x - attackRange,
-            y,
-            attackRange,
-            height.toFloat()
-        )
+        // Hitbox în fața jucătorului, pe toate cele 4 direcții (ca în versiunea Java).
+        // Axa Y e în sus în LibGDX, deci UP = deasupra sprite-ului.
+        val attackBounds = when (direction) {
+            Direction.UP -> Rectangle(x, y + height, width.toFloat(), attackRange)
+            Direction.DOWN -> Rectangle(x, y - attackRange, width.toFloat(), attackRange)
+            Direction.LEFT -> Rectangle(x - attackRange, y, attackRange, height.toFloat())
+            Direction.RIGHT -> Rectangle(x + width, y, attackRange, height.toFloat())
+        }
 
         val gameState = refLink.gameState
         gameState?.let { state ->
             for (entity in state.getEntities()) {
                 val entityRect = entity.bounds.toRectangle()
-                if ((entity is Agent || entity is Animal) && attackBounds.overlaps(entityRect)) {
+                if (entity is Agent && attackBounds.overlaps(entityRect)) {
                     // Verificăm să nu ne lovim singuri (deși lista entităților nu include player-ul de obicei)
                     if (entity != this) {
                         // Presupunând că Agent/Animal au metoda takeDamage
+                        // Animalele sunt obstacole, nu inamici - nu pot fi ucise (ca în versiunea Java).
                         if (entity is Agent) entity.takeDamage(attackDamage)
-                        if (entity is Animal) entity.takeDamage(attackDamage)
                     }
                 }
             }
@@ -287,8 +304,10 @@ class Player(
         currentFrame = currentAnimation.getKeyFrame(stateTime, true)
     }
 
-    fun takeDamage(damage: Int) {
+    fun takeDamage(damage: Int, ignoreInvulnerability: Boolean = false) {
         if (isHurt) return
+        if (invulnerableTime > 0f && !ignoreInvulnerability) return
+        invulnerableTime = invulnerabilityDuration
         SoundManager.playSfx(SoundManager.SFX_PLAYER_HURT)
         health = (health - damage).coerceAtLeast(0)
         if (health <= 0) {
@@ -327,6 +346,12 @@ class Player(
     fun getFacingDirection(): Direction = direction
 
     override fun render(batch: SpriteBatch) {
+        // Clipire cât timp e invulnerabil (feedback vizual pentru lovitură)
+        if (invulnerableTime > 0f && !isHurt && ((invulnerableTime * 10).toInt() % 2 == 0)) return
         batch.draw(currentFrame, x, y, width.toFloat(), height.toFloat())
+    }
+
+    private companion object {
+        const val DIAGONAL_FACTOR = 0.70710677f // 1/√2
     }
 }

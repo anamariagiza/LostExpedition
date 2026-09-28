@@ -86,12 +86,19 @@ class Agent(
     }
 
     private fun updatePatrolMode() {
+        // După urmărire velocityX e vectorul de chase (poate fi ~0); revenim la viteza de patrulare.
+        velocityX = if (velocityX >= 0f) normalSpeed else -normalSpeed
+        velocityY = 0f
         x += velocityX * Gdx.graphics.deltaTime
 
-        if (x <= leftBound || x >= rightBound) {
-            velocityX = -velocityX
-            direction = if (velocityX > 0) Direction.RIGHT else Direction.LEFT
+        // Sens explicit spre interiorul zonei (vezi Animal.update); fără teleport dacă
+        // agentul a ieșit din zonă în timpul urmăririi - doar se întoarce spre ea.
+        if (x <= leftBound) {
+            velocityX = abs(velocityX)
+        } else if (x >= rightBound) {
+            velocityX = -abs(velocityX)
         }
+        direction = if (velocityX > 0) Direction.RIGHT else Direction.LEFT
 
         currentAnimation = walkAnimation
     }
@@ -172,10 +179,21 @@ class Agent(
 
         val player = refLink.player ?: return
 
-        val attackBounds = com.badlogic.gdx.math.Rectangle(
-            if (direction == Direction.RIGHT) x + width else x - attackRange,
-            y, attackRange, height.toFloat()
-        )
+        // Lovește spre partea unde se află jucătorul (sus/jos/stânga/dreapta), nu doar orizontal,
+        // altfel un jucător aflat direct deasupra/dedesubt nu poate fi atins niciodată.
+        val dx = player.x - x
+        val dy = player.y - y
+        val attackBounds = if (abs(dx) >= abs(dy)) {
+            com.badlogic.gdx.math.Rectangle(
+                if (dx >= 0) x + width else x - attackRange,
+                y, attackRange, height.toFloat()
+            )
+        } else {
+            com.badlogic.gdx.math.Rectangle(
+                x, if (dy >= 0) y + height else y - attackRange,
+                width.toFloat(), attackRange
+            )
+        }
 
         if (attackBounds.overlaps(player.bounds.toRectangle())) {
             player.takeDamage(attackDamage)

@@ -26,7 +26,13 @@ class Animal(
         AnimalType.BAT -> 20
     }
 
-    private var velocityX = 2f
+    // px/s - vitezele din versiunea Java (px/frame la 60fps) convertite, ca mișcarea
+    // să nu depindă de refresh rate-ul ecranului (60 vs 90/120Hz).
+    private var velocityX = when (type) {
+        AnimalType.JAGUAR -> 90f
+        AnimalType.MONKEY -> 60f
+        AnimalType.BAT -> 120f
+    }
     private val animation: Animation<TextureRegion>?
     private var stateTime = 0f
 
@@ -41,10 +47,14 @@ class Animal(
     override fun update() {
         stateTime += com.badlogic.gdx.Gdx.graphics.deltaTime
 
-        x += velocityX
+        x += velocityX * com.badlogic.gdx.Gdx.graphics.deltaTime
 
-        if (x <= leftBound || x >= rightBound) {
-            velocityX = -velocityX
+        // Alegem sensul explicit (spre interiorul zonei): cu pași variabili (delta) un simplu
+        // "velocityX = -velocityX" poate rămâne blocat oscilând dincolo de limită.
+        if (x <= leftBound) {
+            velocityX = kotlin.math.abs(velocityX)
+        } else if (x >= rightBound) {
+            velocityX = -kotlin.math.abs(velocityX)
         }
         // ✅ FIX: bounds.setPosition(x, y) șters
     }
@@ -65,10 +75,6 @@ class Animal(
                 height.toFloat()
             )
         }
-    }
-
-    fun takeDamage(amount: Int) {
-        // Animals don't have health in this implementation
     }
 }
 

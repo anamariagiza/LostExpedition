@@ -66,9 +66,18 @@ class GameState(
     private var collectionMessageTime = 0L
     private var woodSignMessage: String? = null
 
-    private var lastAnimalDamageTime = 0L
-    private var lastTrapDamageTime = 0L
-    private var lastAgentTrapDamageTime = 0L
+    // Ceas de joc (ms) avansat doar din update(delta): se oprește cât timp jocul e pe pauză,
+    // în puzzle sau aplicația e în fundal, spre deosebire de System.currentTimeMillis().
+    private var gameTimeMs = 0L
+
+    // Setat de handler-ele de nivel când butonul de interacțiune a fost folosit în acest frame
+    // (NPC, intrare peșteră, ușă), ca același tap să nu comute și bannerul de obiectiv.
+    private var interactConsumed = false
+
+    // Pornesc "în trecut" ca prima lovitură să nu aștepte un cooldown întreg de la începutul nivelului.
+    private var lastAnimalDamageTime = -ANIMAL_DAMAGE_COOLDOWN_MS
+    private var lastTrapDamageTime = -TRAP_DAMAGE_COOLDOWN_MS
+    private var lastAgentTrapDamageTime = -TRAP_DAMAGE_COOLDOWN_MS
 
     private var finalBoss: Agent? = null
     private var finalChest: Chest? = null
@@ -431,8 +440,11 @@ class GameState(
     }
 
     override fun update(delta: Float) {
+        gameTimeMs += (delta * 1000f).toLong()
+        interactConsumed = false
+
         if (collectionMessage != null &&
-            System.currentTimeMillis() - collectionMessageTime > MESSAGE_DURATION_MS
+            gameTimeMs - collectionMessageTime > MESSAGE_DURATION_MS
         ) {
             collectionMessage = null
         }
@@ -471,32 +483,6 @@ class GameState(
 
         fogOfWar?.update()
 
-        if (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-            var interactedWithSign = false
-
-            for (entity in entities) {
-                if (entity is DecorativeObject && entity.isInteractable) {
-                    val dist = com.badlogic.gdx.math.Vector2.dst(player.x, player.y, entity.x, entity.y)
-                    if (dist < 100f) {
-                        interactedWithSign = true
-                        val msg = entity.getDialogueMessage()
-                        if (woodSignMessage == null) {
-                            woodSignMessage = msg
-                        } else {
-                            woodSignMessage = null
-                        }
-                        break
-                    }
-                }
-            }
-
-            if (!interactedWithSign && woodSignMessage == null) {
-                isObjectiveDisplayed = !isObjectiveDisplayed
-            } else if (woodSignMessage != null && !interactedWithSign) {
-                woodSignMessage = null
-            }
-        }
-
         if (player.health <= 0) {
             refLink.setState(GameOverState(refLink))
             return
@@ -525,6 +511,38 @@ class GameState(
         gameCamera.update()
 
         updateLevelSpecificLogic(delta)
+        if (State.currentState !== this) return // am trecut în altă stare în acest frame
+
+        // Rulează DUPĂ logica de nivel: dacă tap-ul a fost folosit de un NPC/ușă/intrare,
+        // nu mai deschidem și panoul de obiectiv/indicatorul.
+        if (!interactConsumed &&
+            (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E))
+        ) {
+            var interactedWithSign = false
+
+            for (entity in entities) {
+                if (entity is DecorativeObject && entity.isInteractable) {
+                    val dist = com.badlogic.gdx.math.Vector2.dst(player.x, player.y, entity.x, entity.y)
+                    if (dist < 100f) {
+                        interactedWithSign = true
+                        val msg = entity.getDialogueMessage()
+                        if (woodSignMessage == null) {
+                            woodSignMessage = msg
+                        } else {
+                            woodSignMessage = null
+                        }
+                        break
+                    }
+                }
+            }
+
+            if (!interactedWithSign && woodSignMessage == null) {
+                isObjectiveDisplayed = !isObjectiveDisplayed
+            } else if (woodSignMessage != null && !interactedWithSign) {
+                woodSignMessage = null
+            }
+        }
+
         updateEntities(delta)
     }
 
@@ -539,13 +557,14 @@ class GameState(
     private fun updateLevel1Logic() {
         caveGuardianNPC?.let { npc ->
             if (player.bounds.overlaps(npc.bounds)) {
-                if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) {
+                if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) {
+                    interactConsumed = true
                     if (hasTalisman) {
                         caveEntranceUnlocked = true
                         removeTalismanFromInventory()
-                    } else {
+                    } else if (!caveEntranceUnlocked) {
                         collectionMessage = "Nu am talismanul!"
-                        collectionMessageTime = System.currentTimeMillis()
+                        collectionMessageTime = gameTimeMs
                     }
                 }
             }
@@ -553,23 +572,24 @@ class GameState(
 
         caveEntrance?.let { entrance ->
             if (player.bounds.overlaps(entrance.bounds) &&
-                (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed)
+                (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed)
             ) {
+                interactConsumed = true
                 if (caveEntranceUnlocked && hasDoorKeys[0]) {
                     passToLevel2()
                 } else if (!caveEntranceUnlocked) {
                     collectionMessage = "Intrarea este blocată."
-                    collectionMessageTime = System.currentTimeMillis()
+                    collectionMessageTime = gameTimeMs
                 } else if (!hasDoorKeys[0]) {
                     collectionMessage = "Ai nevoie de cheie!"
-                    collectionMessageTime = System.currentTimeMillis()
+                    collectionMessageTime = gameTimeMs
                 }
             }
         }
     }
 
     private fun updateLevel2Logic() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) {
             checkAndOpenDoor()
         }
 
@@ -601,14 +621,14 @@ class GameState(
             for (entity in entities) {
                 if (entity is TrapTrigger && entity.bounds.overlaps(player.bounds)) {
                     trapsTriggered = true
-                    trapActivationTime = System.currentTimeMillis()
+                    trapActivationTime = gameTimeMs
                     break
                 }
             }
         }
 
         if (trapsTriggered &&
-            System.currentTimeMillis() - trapActivationTime >= GLOBAL_ACTIVATION_DELAY_MS
+            gameTimeMs - trapActivationTime >= GLOBAL_ACTIVATION_DELAY_MS
         ) {
             for (trap in arenaTraps) {
                 trap.setActive(true)
@@ -645,7 +665,7 @@ class GameState(
                         if (associatedId in hasDoorKeys.indices) {
                             hasDoorKeys[associatedId] = true
                             collectionMessage = "Cheia colectată!"
-                            collectionMessageTime = System.currentTimeMillis()
+                            collectionMessageTime = gameTimeMs
                             SoundManager.playSfx(SoundManager.SFX_KEY)
                         }
                         iterator.remove()
@@ -655,7 +675,7 @@ class GameState(
                     if (entity.bounds.overlaps(player.bounds)) {
                         hasTalisman = true
                         collectionMessage = "Talisman colectat!"
-                        collectionMessageTime = System.currentTimeMillis()
+                        collectionMessageTime = gameTimeMs
                         SoundManager.playSfx(SoundManager.SFX_KEY)
                         iterator.remove()
                     }
@@ -668,17 +688,17 @@ class GameState(
                 is Trap -> {
                     if (entity.isActive()) {
                         if (player.bounds.overlaps(entity.bounds)) {
-                            if (System.currentTimeMillis() - lastTrapDamageTime >= TRAP_DAMAGE_COOLDOWN_MS) {
+                            if (gameTimeMs - lastTrapDamageTime >= TRAP_DAMAGE_COOLDOWN_MS) {
                                 player.takeDamage(30)
-                                lastTrapDamageTime = System.currentTimeMillis()
+                                lastTrapDamageTime = gameTimeMs
                                 SoundManager.playSfx(SoundManager.SFX_TRAP)
                             }
                         }
                         finalBoss?.let { boss ->
                             if (boss.bounds.overlaps(entity.bounds)) {
-                                if (System.currentTimeMillis() - lastAgentTrapDamageTime >= TRAP_DAMAGE_COOLDOWN_MS) {
+                                if (gameTimeMs - lastAgentTrapDamageTime >= TRAP_DAMAGE_COOLDOWN_MS) {
                                     boss.takeDamage(20)
-                                    lastAgentTrapDamageTime = System.currentTimeMillis()
+                                    lastAgentTrapDamageTime = gameTimeMs
                                 }
                             }
                         }
@@ -693,14 +713,14 @@ class GameState(
         }
 
         if (playerInContactWithAnimal) {
-            if (System.currentTimeMillis() - lastAnimalDamageTime >= ANIMAL_DAMAGE_COOLDOWN_MS) {
+            if (gameTimeMs - lastAnimalDamageTime >= ANIMAL_DAMAGE_COOLDOWN_MS) {
                 for (entity in entities) {
                     if (entity is Animal && player.bounds.overlaps(entity.bounds)) {
-                        player.takeDamage(20)
+                        player.takeDamage(entity.damage)
                         break
                     }
                 }
-                lastAnimalDamageTime = System.currentTimeMillis()
+                lastAnimalDamageTime = gameTimeMs
             }
         }
     }
@@ -717,12 +737,13 @@ class GameState(
             ) {
 
                 if (getTileJava(doorCoords[0], doorCoords[1]).isSolid) {
+                    interactConsumed = true
                     if (hasDoorKeys[i]) {
                         openDoor(i)
                         return
                     } else {
                         collectionMessage = "Ușa este blocată!"
-                        collectionMessageTime = System.currentTimeMillis()
+                        collectionMessageTime = gameTimeMs
                         return
                     }
                 }
@@ -751,7 +772,7 @@ class GameState(
 
                 hasDoorKeys[doorIndex] = false
                 collectionMessage = "Ușa s-a deschis!"
-                collectionMessageTime = System.currentTimeMillis()
+                collectionMessageTime = gameTimeMs
                 SoundManager.playSfx(SoundManager.SFX_DOOR)
             }
         }
@@ -769,12 +790,13 @@ class GameState(
         val playerTileY = getPlayerTileY()
 
         if (abs(playerTileX - doorTileX) <= 2 && abs(playerTileY - doorTileY) <= 2) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractPressed) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.E) || refLink.touchController.isInteractJustPressed) {
+                interactConsumed = true
                 if (hasDoorKeys.size > 6 && hasDoorKeys[6]) {
                     openFinalDoor()
                 } else {
                     collectionMessage = "Ușa este încuiată."
-                    collectionMessageTime = System.currentTimeMillis()
+                    collectionMessageTime = gameTimeMs
                 }
             }
         }
@@ -791,7 +813,7 @@ class GameState(
             hasDoorKeys[6] = false
         }
         collectionMessage = "Ușa s-a deblocat!"
-        collectionMessageTime = System.currentTimeMillis()
+        collectionMessageTime = gameTimeMs
         SoundManager.playSfx(SoundManager.SFX_DOOR)
     }
 
@@ -815,7 +837,7 @@ class GameState(
 
         // 4. Afișăm un mesaj de succes
         collectionMessage = "Nivelul 2: Labirintul"
-        collectionMessageTime = System.currentTimeMillis()
+        collectionMessageTime = gameTimeMs
 
         // 5. Checkpoint: Salvăm jocul automat (inclusiv cheia)
         saveCurrentState()
@@ -837,7 +859,7 @@ class GameState(
         player.health = currentHealth
 
         collectionMessage = "Nivelul 3: Bătălia Finală"
-        collectionMessageTime = System.currentTimeMillis()
+        collectionMessageTime = gameTimeMs
 
         saveCurrentState()
     }
@@ -861,7 +883,7 @@ class GameState(
     }
 
     fun onPuzzleFailure() {
-        player.takeDamage(20)
+        player.takeDamage(20, ignoreInvulnerability = true)
 
         if (player.health <= 0) {
             refLink.setState(GameOverState(refLink))
@@ -876,7 +898,7 @@ class GameState(
         entities.removeAll { it is Talisman }
         println("Talismanul a fost predat.")
         collectionMessage = "Intrarea este deschisă!"
-        collectionMessageTime = System.currentTimeMillis()
+        collectionMessageTime = gameTimeMs
     }
 
     fun addEntity(entity: Entity) {
