@@ -28,20 +28,17 @@ class HelpState(refLink: RefLinks) : State(refLink) {
     }
 
     private val helpText = arrayOf(
-        "COMENZI DE JOC",
+        "HOW TO PLAY",
         "",
-        "Mișcare:",
-        "• Joystick virtual (stânga) - Mișcare",
-        "• Buton RUN - Alergare rapidă",
+        "Movement:",
+        "• Virtual joystick (bottom left) - Move",
         "",
-        "Acțiuni:",
-        "• Buton E - Interacționează cu obiecte",
-        "• Buton ATTACK - Atacă inamici",
-        "• Buton JUMP - Sări",
+        "Actions:",
+        "• Red button - Attack",
+        "• Blue button - Interact (signs, doors, puzzle tables)",
         "",
-        "Meniul:",
-        "• P - Pauză",
-        "• ESC - Înapoi la meniu"
+        "Top right:",
+        "• Map, Pause and Settings buttons"
     )
 
     private val backBtnBounds = Rectangle()
@@ -100,16 +97,16 @@ class HelpState(refLink: RefLinks) : State(refLink) {
 
         var yPos = height - 80f
         for (line in helpText) {
-            val font = if (line == "COMENZI DE JOC") titleFont else textFont
+            val font = if (line == "HOW TO PLAY") titleFont else textFont
             val layout = font.draw(batch, line, 0f, 0f)
             val xPos = if (line.startsWith("•")) 200f else (width - layout.width) / 2f
             font.draw(batch, line, xPos, yPos)
             yPos -= if (line.isEmpty()) 15f else 30f
         }
 
-        val backLayout = GlyphLayout(buttonFont, "ÎNAPOI")
+        val backLayout = GlyphLayout(buttonFont, "BACK")
         buttonFont.draw(
-            batch, "ÎNAPOI",
+            batch, "BACK",
             backBtnBounds.x + (backBtnBounds.width - backLayout.width) / 2f,
             backBtnBounds.y + (backBtnBounds.height + backLayout.height) / 2f
         )

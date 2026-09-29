@@ -51,6 +51,9 @@ class TouchController(private var screenWidth: Int, private var screenHeight: In
     var isInteractJustPressed = false
         private set
 
+    /** false = jucătorul nu e lângă un indicator/ușă/masă de puzzle: butonul E e estompat și inactiv. */
+    var isInteractEnabled = true
+
     private var wasAttackPressed = false
     private var wasInteractPressed = false
 
@@ -86,7 +89,9 @@ class TouchController(private var screenWidth: Int, private var screenHeight: In
         isInteractPressed = interactButton.isPressed
 
         isAttackJustPressed = isAttackPressed && !wasAttackPressed
-        isInteractJustPressed = isInteractPressed && !wasInteractPressed
+        // Butonul de interacțiune funcționează doar lângă ceva cu care se poate interacționa
+        // (setat de GameState în fiecare frame); altfel e estompat și apăsarea e ignorată.
+        isInteractJustPressed = isInteractEnabled && isInteractPressed && !wasInteractPressed
 
         wasAttackPressed = isAttackPressed
         wasInteractPressed = isInteractPressed
@@ -161,7 +166,14 @@ class TouchController(private var screenWidth: Int, private var screenHeight: In
                 attackButton.x - attackButton.radius, attackButton.y - attackButton.radius,
                 attackButton.radius * 2f, attackButton.radius * 2f
             )
-            batch.setColor(1f, 1f, 1f, if (interactButton.isPressed) 0.95f else 0.55f)
+            batch.setColor(
+                1f, 1f, 1f,
+                when {
+                    !isInteractEnabled -> 0.2f
+                    interactButton.isPressed -> 0.95f
+                    else -> 0.85f
+                }
+            )
             batch.draw(
                 interactTex,
                 interactButton.x - interactButton.radius, interactButton.y - interactButton.radius,

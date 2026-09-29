@@ -249,7 +249,11 @@ class Player(
 
     /** Coliziune cu obiectele solide din nivel (mesele de puzzle), pe aceeași cutie ca la dale. */
     private fun hitsSolidObject(left: Float, bottom: Float, right: Float, top: Float): Boolean {
-        val entities = refLink.gameState?.getEntities() ?: return false
+        val gameState = refLink.gameState ?: return false
+        for (r in gameState.getMovementBlockers()) {
+            if (left < r.x + r.width && right > r.x && bottom < r.y + r.height && top > r.y) return true
+        }
+        val entities = gameState.getEntities()
         for (e in entities) {
             if (e is DecorativeObject && e.isSolid &&
                 left < e.x + e.width && right > e.x && bottom < e.y + e.height && top > e.y

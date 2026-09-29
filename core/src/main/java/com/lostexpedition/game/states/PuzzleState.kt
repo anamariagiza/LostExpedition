@@ -283,14 +283,14 @@ class PuzzleState(
             drawResultPanel(
                 batch, centerX, centerY,
                 "PUZZLE SOLVED!", Color.GREEN,
-                "Continuă", Color(0f, 0.5f, 0f, 1f),
+                "Continue", Color(0f, 0.5f, 0f, 1f),
                 nextPuzzleButtonBounds
             )
         } else if (puzzleFailed) {
             drawResultPanel(
                 batch, centerX, centerY,
-                "GREȘIT! Încearcă din nou.", Color.RED,
-                "Încearcă din nou", Color(0.6f, 0f, 0f, 1f),
+                "WRONG! Try again.", Color.RED,
+                "Try again", Color(0.6f, 0f, 0f, 1f),
                 retryButtonBounds
             )
         }

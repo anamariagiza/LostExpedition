@@ -32,12 +32,12 @@ class NPC(
 
         if (touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             dialogueMessage = when {
-                hasGivenTalisman -> "Drum bun, explorator."
+                hasGivenTalisman -> "Safe travels, explorer."
                 hasTalisman -> {
                     hasGivenTalisman = true
-                    "Mulțumesc! Calea înainte este acum deschisă."
+                    "Thank you! The way forward is now open."
                 }
-                else -> "Găsește talismanul antic și adu-mi-l."
+                else -> "Find the ancient talisman and bring it to me."
             }
             showDialogue = true
             dialogueTimer = 3f

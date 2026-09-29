@@ -37,6 +37,10 @@ class GameState(
         private const val ANIMAL_DAMAGE_COOLDOWN_MS = 4000L
         private const val TRAP_DAMAGE_COOLDOWN_MS = 2000L
         private const val GLOBAL_ACTIVATION_DELAY_MS = 1000L
+        private const val OBJECTIVE_HOLD = 1.5f  // secunde în centrul ecranului
+        private const val OBJECTIVE_MOVE = 0.5f  // secunde pentru urcarea spre partea de sus
+        private const val DOOR_LEFT_POST = 24f
+        private const val DOOR_RIGHT_POST = 12f
     }
 
     private val levelPaths = arrayOf(
@@ -58,7 +62,7 @@ class GameState(
     private var wordPuzzleSolved = false
     private var hasTalisman = false
     private var caveEntranceUnlocked = false
-    private var currentObjective = "Adună cheia și talismanul Lunii."
+    private var currentObjective = "Find the key and the Moon talisman."
     private var isObjectiveDisplayed = false
 
     private val entities = mutableListOf<Entity>()
@@ -68,7 +72,8 @@ class GameState(
 
     private var collectionMessage: String? = null
     private var collectionMessageTime = 0L
-    private var woodSignMessage: String? = null
+    // >= 0: animația obiectivului citit de pe indicator (centru -> sus) e în desfășurare
+    private var objectiveRevealTime = -1f
 
     // Ceas de joc (ms) avansat doar din update(delta): se oprește cât timp jocul e pe pauză,
     // în puzzle sau aplicația e în fundal, spre deosebire de System.currentTimeMillis().
@@ -95,6 +100,10 @@ class GameState(
         intArrayOf(18, 22), intArrayOf(35, 16), intArrayOf(52, 22),
         intArrayOf(69, 13), intArrayOf(86, 22)
     )
+
+    // Zone solide care nu sunt dale întregi (ex. stâlpii ușilor din nivelul 2), verificate de Player.
+    private val movementBlockers = mutableListOf<Rectangle>()
+    fun getMovementBlockers(): List<Rectangle> = movementBlockers
 
     private val puzzleDoorPositions = arrayOf(
         intArrayOf(19, 24, 20, 24, 19, 25, 20, 25),
@@ -275,6 +284,7 @@ class GameState(
     }
 
     private fun loadLevelEntities() {
+        movementBlockers.clear()
         when (currentLevelIndex) {
             0 -> loadLevel1Entities()
             1 -> loadLevel2Entities()
@@ -337,7 +347,7 @@ class GameState(
             refLink, 2f * TS, topDownY(1), 64, 64,
             TextureRegion(Assets.woodSignImage), true
         )
-        woodSign1.setDialogueMessage("Adună cheia și talismanul Lunii.")
+        woodSign1.setDialogueMessage("Find the key and the Moon talisman.")
         entities.add(woodSign1)
     }
 
@@ -367,6 +377,17 @@ class GameState(
 
         entities.add(LevelExit(refLink, 110f * TS, topDownY(14), (TS * 2).toInt(), TS.toInt()))
 
+        // Stâlpii ușilor: prin ușa deschisă se trece doar pe mijloc. În stânga e canatul ușii
+        // (~24px), în dreapta tocul (~12px), pe ambele rânduri ale ușii (arcul + partea de jos).
+        for (door in puzzleDoorPositions) {
+            val left = door[0] * TS
+            val right = (door[2] + 1) * TS
+            val bottom = topDownY(door[5])
+            val h = TS * 2
+            movementBlockers.add(Rectangle(left, bottom, DOOR_LEFT_POST, h))
+            movementBlockers.add(Rectangle(right - DOOR_RIGHT_POST, bottom, DOOR_RIGHT_POST, h))
+        }
+
         // Cheia unui puzzle rezolvat reapare doar dacă nu a fost încă ridicată și nici folosită.
         for (i in 1..TOTAL_PUZZLES_LEVEL2) {
             if (isPuzzleSolved(i) && !hasDoorKeys[i] && !doorsOpened[i]) {
@@ -380,7 +401,7 @@ class GameState(
             refLink, 3f * TS, topDownY(25), 64, 64,
             TextureRegion(Assets.woodSignImage), true
         )
-        woodSign2.setDialogueMessage("Rezolvă puzzle-urile.")
+        woodSign2.setDialogueMessage("Solve the puzzles to open the doors.")
         entities.add(woodSign2)
     }
 
@@ -437,7 +458,7 @@ class GameState(
             refLink, 37f * TS, topDownY(56), 64, 64,
             TextureRegion(Assets.woodSignImage), true
         )
-        woodSign3.setDialogueMessage("Învinge inamicul.")
+        woodSign3.setDialogueMessage("Defeat the Agent and claim the treasure.")
         entities.add(woodSign3)
     }
 
@@ -517,35 +538,59 @@ class GameState(
 
         // Rulează DUPĂ logica de nivel: dacă tap-ul a fost folosit de un NPC/ușă/intrare,
         // nu mai deschidem și panoul de obiectiv/indicatorul.
-        if (!interactConsumed &&
-            (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E))
+        // Indicatorul (wood sign): obiectivul apare mare în centrul ecranului, apoi urcă sus
+        // și rămâne acolo (vezi drawObjective()).
+        if (!interactConsumed && objectiveRevealTime < 0f &&
+            (refLink.touchController.isInteractJustPressed || Gdx.input.isKeyJustPressed(Input.Keys.E)) &&
+            nearbyWoodSign() != null
         ) {
-            var interactedWithSign = false
-
-            for (entity in entities) {
-                if (entity is DecorativeObject && entity.isInteractable) {
-                    val dist = com.badlogic.gdx.math.Vector2.dst(player.x, player.y, entity.x, entity.y)
-                    if (dist < 100f) {
-                        interactedWithSign = true
-                        val msg = entity.getDialogueMessage()
-                        if (woodSignMessage == null) {
-                            woodSignMessage = msg
-                        } else {
-                            woodSignMessage = null
-                        }
-                        break
-                    }
-                }
-            }
-
-            if (!interactedWithSign && woodSignMessage == null) {
-                isObjectiveDisplayed = !isObjectiveDisplayed
-            } else if (woodSignMessage != null && !interactedWithSign) {
-                woodSignMessage = null
+            objectiveRevealTime = 0f
+            isObjectiveDisplayed = false
+        }
+        if (objectiveRevealTime >= 0f) {
+            objectiveRevealTime += delta
+            if (objectiveRevealTime >= OBJECTIVE_HOLD + OBJECTIVE_MOVE) {
+                objectiveRevealTime = -1f
+                isObjectiveDisplayed = true
             }
         }
 
         updateEntities(delta)
+
+        // Butonul E e activ doar lângă ceva cu care se poate interacționa (pentru frame-ul următor).
+        refLink.touchController.isInteractEnabled = hasInteractionTarget()
+    }
+
+    private fun nearbyWoodSign(): DecorativeObject? = entities.firstOrNull {
+        it is DecorativeObject && it.getDialogueMessage() != null &&
+            com.badlogic.gdx.math.Vector2.dst(player.x, player.y, it.x, it.y) < 100f
+    } as DecorativeObject?
+
+    /** Există lângă jucător un indicator, o ușă închisă, o masă de puzzle, NPC-ul, intrarea sau cufărul? */
+    private fun hasInteractionTarget(): Boolean {
+        if (nearbyWoodSign() != null) return true
+        val p = player.bounds.toRectangle()
+        val TS = TileConstants.TILE_SIZE
+        for (e in entities) {
+            when (e) {
+                is PuzzleTrigger ->
+                    if (Rectangle(e.x - 30f, e.y - 30f, e.width + 60f, e.height + 60f).overlaps(p)) return true
+                is NPC, is CaveEntrance ->
+                    if (e.bounds.overlaps(player.bounds)) return true
+                is Chest ->
+                    if (e.canInteract() && Rectangle(e.x - 20f, e.y - 20f, e.width + 40f, e.height + 40f).overlaps(p)) return true
+                else -> {}
+            }
+        }
+        val tx = getPlayerTileX()
+        val ty = getPlayerTileY()
+        when (currentLevelIndex) {
+            1 -> for (door in puzzleDoorPositions) {
+                if (abs(tx - door[0]) <= 2 && abs(ty - door[1]) <= 2 && getTileJava(door[0], door[1]).isSolid) return true
+            }
+            2 -> if (abs(tx - 39) <= 2 && abs(ty - 6) <= 2 && getTileJava(39, 6).isSolid) return true
+        }
+        return false
     }
 
     private fun updateLevelSpecificLogic(delta: Float) {
@@ -565,7 +610,7 @@ class GameState(
                         caveEntranceUnlocked = true
                         removeTalismanFromInventory()
                     } else if (!caveEntranceUnlocked) {
-                        collectionMessage = "Nu am talismanul!"
+                        collectionMessage = "I don't have the talisman yet!"
                         collectionMessageTime = gameTimeMs
                     }
                 }
@@ -580,10 +625,10 @@ class GameState(
                 if (caveEntranceUnlocked && hasDoorKeys[0]) {
                     passToLevel2()
                 } else if (!caveEntranceUnlocked) {
-                    collectionMessage = "Intrarea este blocată."
+                    collectionMessage = "The entrance is blocked."
                     collectionMessageTime = gameTimeMs
                 } else if (!hasDoorKeys[0]) {
-                    collectionMessage = "Ai nevoie de cheie!"
+                    collectionMessage = "You need a key!"
                     collectionMessageTime = gameTimeMs
                 }
             }
@@ -666,7 +711,7 @@ class GameState(
                         val associatedId = entity.associatedPuzzleId
                         if (associatedId in hasDoorKeys.indices) {
                             hasDoorKeys[associatedId] = true
-                            collectionMessage = "Cheia colectată!"
+                            collectionMessage = "Key collected!"
                             collectionMessageTime = gameTimeMs
                             SoundManager.playSfx(SoundManager.SFX_KEY)
                         }
@@ -744,7 +789,7 @@ class GameState(
                         openDoor(i)
                         return
                     } else {
-                        collectionMessage = "Ușa este blocată!"
+                        collectionMessage = "The door is locked!"
                         collectionMessageTime = gameTimeMs
                         return
                     }
@@ -758,7 +803,7 @@ class GameState(
             if (applyDoorOpenTiles(doorIndex)) {
                 doorsOpened[doorIndex] = true
                 hasDoorKeys[doorIndex] = false
-                collectionMessage = "Ușa s-a deschis!"
+                collectionMessage = "The door opened!"
                 collectionMessageTime = gameTimeMs
                 SoundManager.playSfx(SoundManager.SFX_DOOR)
             }
@@ -818,7 +863,7 @@ class GameState(
                 if (hasDoorKeys.size > 6 && hasDoorKeys[6]) {
                     openFinalDoor()
                 } else {
-                    collectionMessage = "Ușa este încuiată."
+                    collectionMessage = "The door is locked."
                     collectionMessageTime = gameTimeMs
                 }
             }
@@ -832,7 +877,7 @@ class GameState(
         if (hasDoorKeys.size > 6) {
             hasDoorKeys[6] = false
         }
-        collectionMessage = "Ușa s-a deblocat!"
+        collectionMessage = "The door is unlocked!"
         collectionMessageTime = gameTimeMs
         SoundManager.playSfx(SoundManager.SFX_DOOR)
     }
@@ -856,7 +901,7 @@ class GameState(
         player.health = currentHealth
 
         // 4. Afișăm un mesaj de succes
-        collectionMessage = "Nivelul 2: Labirintul"
+        collectionMessage = "Level 2: The Labyrinth"
         collectionMessageTime = gameTimeMs
 
         // 5. Checkpoint: Salvăm jocul automat (inclusiv cheia)
@@ -878,7 +923,7 @@ class GameState(
 
         player.health = currentHealth
 
-        collectionMessage = "Nivelul 3: Bătălia Finală"
+        collectionMessage = "Level 3: The Final Battle"
         collectionMessageTime = gameTimeMs
 
         saveCurrentState()
@@ -928,7 +973,7 @@ class GameState(
         hasTalisman = false
         entities.removeAll { it is Talisman }
         println("Talismanul a fost predat.")
-        collectionMessage = "Intrarea este deschisă!"
+        collectionMessage = "The entrance is open!"
         collectionMessageTime = gameTimeMs
     }
 
@@ -938,17 +983,14 @@ class GameState(
 
     private fun updateObjective() {
         currentObjective = when (currentLevelIndex) {
-            1 -> "Rezolvă puzzle-urile."
-            2 -> "Învinge agentul și ia comoara."
-            else -> "Adună cheia și talismanul."
+            1 -> "Solve the puzzles to open the doors."
+            2 -> "Defeat the Agent and claim the treasure."
+            else -> "Find the key and the Moon talisman."
         }
     }
 
-    fun showWoodSignMessage(message: String?) {
-        woodSignMessage = message
-    }
-
-    fun isWoodSignMessageShowing(): Boolean = woodSignMessage != null
+    /** Obiectivul e afișat mare în centru (după citirea indicatorului) - puzzle-urile așteaptă. */
+    fun isWoodSignMessageShowing(): Boolean = objectiveRevealTime in 0f..OBJECTIVE_HOLD
     fun isCaveEntranceUnlocked(): Boolean = caveEntranceUnlocked
     fun setCaveEntranceUnlocked(unlocked: Boolean) { caveEntranceUnlocked = unlocked }
 
@@ -1008,11 +1050,29 @@ class GameState(
         for (entity in allEntities) {
             entity.render(batch)
         }
+        if (currentLevelIndex == 1) drawDoorArchesInFront(batch)
         batch.end()
 
         fogOfWar?.render(batch, camera)
         renderUI(batch)
         refLink.touchController.draw()
+    }
+
+    /**
+     * Redesenează rândul de sus al fiecărei uși (arcul) DUPĂ entități, ca jucătorul să pară că
+     * trece PE SUB arc, nu peste el. Desenăm dala curentă din layer-ul de obiecte, deci merge
+     * atât pentru ușa închisă cât și pentru cea deschisă.
+     */
+    private fun drawDoorArchesInFront(batch: SpriteBatch) {
+        val layer = currentMap.tiledMap.layers.get("objects") as? com.badlogic.gdx.maps.tiled.TiledMapTileLayer ?: return
+        val TS = TileConstants.TILE_SIZE
+        for (door in puzzleDoorPositions) {
+            val archRow = currentMap.height - 1 - door[1]
+            for (tx in intArrayOf(door[0], door[2])) {
+                val region = layer.getCell(tx, archRow)?.tile?.textureRegion ?: continue
+                batch.draw(region, tx * TS, archRow * TS, TS, TS)
+            }
+        }
     }
 
     private fun renderUI(batch: SpriteBatch) {
@@ -1024,16 +1084,6 @@ class GameState(
 
         font.data.setScale(1f)
 
-        if (isObjectiveDisplayed) {
-            font.color = Color.YELLOW
-
-            val objectiveText = "Obiectiv: $currentObjective"
-            val layout = GlyphLayout(font, objectiveText)
-            val x = (Gdx.graphics.width - layout.width) / 2
-
-            font.draw(batch, objectiveText, x, 80f)
-        }
-
         collectionMessage?.let { msg ->
             val layout = GlyphLayout(font, msg)
             val x = (Gdx.graphics.width - layout.width) / 2
@@ -1043,28 +1093,55 @@ class GameState(
             font.draw(batch, msg, x, y)
         }
 
-        woodSignMessage?.let { msg ->
-            batch.end()
-            Gdx.gl.glEnable(GL20.GL_BLEND)
-            shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-            shapeRenderer.color = Color(0f, 0f, 0f, 0.7f)
-            shapeRenderer.rect(Gdx.graphics.width / 2f - 300f, Gdx.graphics.height / 2f - 75f, 600f, 150f)
-            shapeRenderer.end()
-            batch.begin()
-
-            val layout = GlyphLayout(font, msg)
-            val x = (Gdx.graphics.width - layout.width) / 2
-            val y = Gdx.graphics.height / 2f + layout.height / 2
-
-            font.color = Color.WHITE
-            font.draw(batch, msg, x, y)
-        }
-
         batch.end()
+
+        drawObjective(batch)
 
         if (showMiniMapOverlay) drawMiniMapOverlay(batch)
         drawTopRightButtons(batch)
+    }
+
+    /**
+     * Obiectivul nivelului. După citirea indicatorului apare mare în centru (OBJECTIVE_HOLD),
+     * apoi urcă și se micșorează spre partea de sus (OBJECTIVE_MOVE), unde rămâne afișat.
+     */
+    private fun drawObjective(batch: SpriteBatch) {
+        val animating = objectiveRevealTime >= 0f
+        if (!animating && !isObjectiveDisplayed) return
+
+        val w = Gdx.graphics.width.toFloat()
+        val h = Gdx.graphics.height.toFloat()
+        val topY = h - h * 0.06f
+        val centerY = h * 0.62f
+
+        // 0 = centru (mare), 1 = sus (normal)
+        val t = if (!animating) 1f
+        else ((objectiveRevealTime - OBJECTIVE_HOLD) / OBJECTIVE_MOVE).coerceIn(0f, 1f)
+        val eased = t * t * (3f - 2f * t)
+        val scale = MathUtils.lerp(1.3f, 0.8f, eased)
+        val textY = MathUtils.lerp(centerY, topY, eased)
+
+        val text = "Objective: $currentObjective"
+        font.data.setScale(scale)
+        val layout = GlyphLayout(font, text)
+        val padX = 24f
+        val padY = 14f
+        val boxX = (w - layout.width) / 2f - padX
+        val boxY = textY - layout.height - padY
+
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapeRenderer.projectionMatrix.setToOrtho2D(0f, 0f, w, h)
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+        shapeRenderer.color = hudPanelColor
+        shapeRenderer.rect(boxX, boxY, layout.width + padX * 2, layout.height + padY * 2)
+        shapeRenderer.end()
+
+        batch.projectionMatrix.setToOrtho2D(0f, 0f, w, h)
+        batch.begin()
+        font.color = Color.YELLOW
+        font.draw(batch, text, (w - layout.width) / 2f, textY)
+        batch.end()
+        font.data.setScale(1f)
     }
 
     private fun drawHealthBar(batch: SpriteBatch) {
@@ -1309,7 +1386,7 @@ class GameState(
         batch.begin()
         font.data.setScale(0.6f)
         font.color = Color.WHITE
-        val hint = "Atinge oriunde pentru a inchide"
+        val hint = "Tap anywhere to close"
         val hintLayout = GlyphLayout(font, hint)
         font.draw(batch, hint, (w - hintLayout.width) / 2f, miniMapY - 10f)
         font.data.setScale(1f)

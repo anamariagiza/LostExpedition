@@ -124,24 +124,24 @@ class SettingsState(refLink: RefLinks) : State(refLink) {
         // Text
         batch.begin()
 
-        val title = "SETARI"
+        val title = "SETTINGS"
         val titleLayout = GlyphLayout(titleFont, title)
         titleFont.draw(batch, title, (Gdx.graphics.width - titleLayout.width) / 2, Gdx.graphics.height - 50f)
 
         font.color = Color.WHITE
-        drawCenteredText(batch, "MUZICA: ${if (SettingsManager.isMusicEnabled) "ON" else "OFF"}", musicBtnBounds)
-        drawCenteredText(batch, "SUNET: ${if (SettingsManager.isSoundEnabled) "ON" else "OFF"}", soundBtnBounds)
+        drawCenteredText(batch, "MUSIC: ${if (SettingsManager.isMusicEnabled) "ON" else "OFF"}", musicBtnBounds)
+        drawCenteredText(batch, "SOUND: ${if (SettingsManager.isSoundEnabled) "ON" else "OFF"}", soundBtnBounds)
         drawCenteredText(batch, "-", volumeDownBounds)
         drawCenteredText(batch, "+", volumeUpBounds)
 
-        val volPercent = (SettingsManager.masterVolume * 100).toInt()
+        val volPercent = Math.round(SettingsManager.masterVolume * 100)
         val volText = "$volPercent%"
         val volLayout = GlyphLayout(font, volText)
         val volX = volumeDownBounds.x + volumeDownBounds.width + (volumeUpBounds.x - (volumeDownBounds.x + volumeDownBounds.width) - volLayout.width) / 2
         val volY = volumeDownBounds.y + (volumeDownBounds.height + volLayout.height) / 2
         font.draw(batch, volText, volX, volY)
 
-        drawCenteredText(batch, "INAPOI", backBtnBounds)
+        drawCenteredText(batch, "BACK", backBtnBounds)
 
         batch.end()
 

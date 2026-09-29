@@ -15,7 +15,7 @@ import com.lostexpedition.game.utils.SoundManager
 
 class WordPuzzleState(refLink: RefLinks) : State(refLink) {
 
-    private val hintText = "Călătorie neașteptată."
+    private val hintText = "They set out to find a legend and never came back. What is the name of their journey?"
     private val targetWordDisplay = "LOST EXPEDITION"
     private val targetWordLogic = "LOSTEXPEDITION"
 
@@ -57,7 +57,7 @@ class WordPuzzleState(refLink: RefLinks) : State(refLink) {
     private val shapeRenderer = ShapeRenderer()
     private val uiMatrix = Matrix4()
 
-    private val titleFont: BitmapFont = UiFont.make((34 * s).toInt(), 3f * s, Color.WHITE)
+    private val titleFont: BitmapFont = UiFont.make((28 * s).toInt(), 2f * s, Color.WHITE)
     private val letterFont: BitmapFont = UiFont.make((30 * s).toInt(), 0f, Color.BLACK)
     private val inputFont: BitmapFont = UiFont.make((38 * s).toInt(), 2f * s, Color.WHITE)
     private val timerFont: BitmapFont = UiFont.make((24 * s).toInt(), 2f * s, Color.RED)
@@ -140,13 +140,17 @@ class WordPuzzleState(refLink: RefLinks) : State(refLink) {
         batch.begin()
 
         // Indiciul (titlul)
-        val titleLayout = GlyphLayout(titleFont, hintText)
-        titleFont.draw(batch, hintText, (screenWidth - titleLayout.width) / 2f, screenHeight - 40f * s)
+        // Ghicitoarea e lungă: o împărțim pe rânduri, centrat, lăsând loc timer-ului din dreapta sus.
+        val hintWidth = screenWidth * 0.62f
+        titleFont.draw(
+            batch, hintText, (screenWidth - hintWidth) / 2f, screenHeight - 30f * s,
+            hintWidth, com.badlogic.gdx.utils.Align.center, true
+        )
 
         // Timerul
         val timeLeftMs = timeLimitMs - (clockMs - puzzleStartTime)
         val timeLeftSec = (timeLeftMs / 1000f).coerceAtLeast(0f)
-        val timerStr = "Timp: %.1f".format(timeLeftSec)
+        val timerStr = "Time: %.1f".format(timeLeftSec)
         val timerLayout = GlyphLayout(timerFont, timerStr)
         timerFont.draw(batch, timerStr, screenWidth - timerLayout.width - 24f * s, screenHeight - 30f * s)
 

@@ -68,8 +68,8 @@ class EndGameState(refLink: RefLinks) : State(refLink) {
 
         // Titlu VICTORY
         batch.begin()
-        val title = "FELICITĂRI!"
-        val subtitle = "Ai terminat Lost Expedition!"
+        val title = "CONGRATULATIONS!"
+        val subtitle = "You completed Lost Expedition!"
         val titleLayout = GlyphLayout(titleFont, title)
         val titleX = (width - titleLayout.width) / 2f
         titleFont.draw(batch, title, titleX, height / 2f + 240f * s)
