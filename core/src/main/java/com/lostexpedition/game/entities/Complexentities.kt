@@ -73,8 +73,12 @@ class Trap(
     refLink: RefLinks,
     x: Float,
     y: Float,
-    private val image: TextureRegion?
-) : Entity(refLink, x, y, 32, 32) {
+    private val image: TextureRegion?,
+    size: Int = 32,
+    /** Dacă e setat: imaginea capcanei inactive (găuri în podea) și cadrele țepilor care ies. */
+    private val inactiveImage: TextureRegion? = null,
+    private val riseFrames: List<TextureRegion> = emptyList()
+) : Entity(refLink, x, y, size, size) {
 
     val damage = 30
     private var active = false
@@ -101,6 +105,17 @@ class Trap(
     override fun render(batch: SpriteBatch) {
         if (!isOnScreen()) return
 
+        // Capcanele de nivel 3: găuri când sunt inactive, apoi țepii ies o dată și rămân ieșiți.
+        if (riseFrames.isNotEmpty()) {
+            val frame = if (!active) {
+                inactiveImage
+            } else {
+                riseFrames[(activationTime / RISE_FRAME_TIME).toInt().coerceAtMost(riseFrames.size - 1)]
+            }
+            frame?.let { batch.draw(it, x, y, width.toFloat(), height.toFloat()) }
+            return
+        }
+
         image?.let {
             if (active) {
                 val alpha = if (kotlin.math.sin(blinkTime.toDouble() * blinkSpeed).toFloat() > 0) 1f else 0.3f
@@ -112,6 +127,10 @@ class Trap(
                 batch.draw(it, x, y, width.toFloat(), height.toFloat())
             }
         }
+    }
+
+    private companion object {
+        const val RISE_FRAME_TIME = 0.08f
     }
 }
 

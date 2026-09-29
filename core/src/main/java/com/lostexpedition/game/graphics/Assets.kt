@@ -135,6 +135,8 @@ object Assets {
     // ==================== TRAPS & LEVEL 3 ====================
     var trapDisabled: TextureRegion? = null
     var trapActiveAnim: Animation<TextureRegion>? = null
+    /** Nivelul 3: țepii ies din podea (vârfuri -> țepi mici -> medii -> țepi complet ieșiți). */
+    var trapRiseFrames: List<TextureRegion> = emptyList()
     var chestClosed: TextureRegion? = null
     var chestOpened: TextureRegion? = null
 
@@ -404,6 +406,8 @@ object Assets {
             if (trapFrames.size > 0) {
                 trapActiveAnim = Animation(0.15f, trapFrames, Animation.PlayMode.LOOP)
             }
+
+            trapRiseFrames = listOf(46, 44, 43, 364).mapNotNull { getTileImageByGID(it, level3TilesetImage!!) }
 
             chestClosed = getTileImageByGID(522, level3TilesetImage!!)
             chestOpened = getTileImageByGID(614, level3TilesetImage!!)

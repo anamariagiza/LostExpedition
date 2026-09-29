@@ -405,41 +405,24 @@ class GameState(
         finalChest?.setCanInteract(false)
         entities.add(finalChest!!)
 
-        val trapTiles = arrayOf(
-            intArrayOf(29, 22), intArrayOf(30, 22), intArrayOf(31, 22), intArrayOf(32, 22),
-            intArrayOf(29, 23), intArrayOf(30, 23), intArrayOf(31, 23), intArrayOf(32, 23),
-            intArrayOf(29, 36), intArrayOf(30, 36), intArrayOf(31, 36), intArrayOf(32, 36),
-            intArrayOf(29, 37), intArrayOf(30, 37), intArrayOf(31, 37), intArrayOf(32, 37),
-            intArrayOf(38, 29), intArrayOf(39, 29), intArrayOf(40, 29), intArrayOf(41, 29),
-            intArrayOf(38, 30), intArrayOf(39, 30), intArrayOf(40, 30), intArrayOf(41, 30),
-            intArrayOf(47, 22), intArrayOf(48, 22), intArrayOf(49, 22), intArrayOf(50, 22),
-            intArrayOf(47, 23), intArrayOf(48, 23), intArrayOf(49, 23), intArrayOf(50, 23),
-            intArrayOf(47, 36), intArrayOf(48, 36), intArrayOf(49, 36), intArrayOf(50, 36),
-            intArrayOf(47, 37), intArrayOf(48, 37), intArrayOf(49, 37), intArrayOf(50, 37)
-        )
-
-        for (pos in trapTiles) {
-            val trap = Trap(
-                refLink, pos[0] * TS, topDownY(pos[1]),
-                TextureRegion(Assets.spikeTrapImage))
-            entities.add(trap)
-            arenaTraps.add(trap)
-        }
-
-        val triggerGroups = arrayOf(
-            intArrayOf(46, 21, 51, 24), intArrayOf(37, 28, 42, 31), intArrayOf(28, 21, 33, 24),
-            intArrayOf(46, 35, 51, 38), intArrayOf(28, 35, 33, 38)
-        )
-
-        for (group in triggerGroups) {
-            val startX = group[0]
-            val startY = group[1]
-            val endX = group[2]
-            val endY = group[3]
-
-            for (javaY in startY..endY) {
-                for (x in startX..endX) {
-                    entities.add(TrapTrigger(refLink, x * TS, topDownY(javaY), TS.toInt(), TS.toInt()))
+        // Capcanele se citesc din layer-ul "traps" al hărții: fiecare dală cu țepi desenată în Tiled
+        // devine o capcană de mărimea unei dale, exact pe poziția ei. Layer-ul în sine nu se mai
+        // desenează (îl desenează entitățile Trap: găuri când sunt inactive, țepi când se activează).
+        // Aceleași dale sunt și zona de declanșare a arenei.
+        val trapLayer = currentMap.tiledMap.layers.get("traps") as? com.badlogic.gdx.maps.tiled.TiledMapTileLayer
+        if (trapLayer != null) {
+            trapLayer.isVisible = false
+            for (ty in 0 until trapLayer.height) {
+                for (tx in 0 until trapLayer.width) {
+                    if (trapLayer.getCell(tx, ty)?.tile == null) continue
+                    val trap = Trap(
+                        refLink, tx * TS, ty * TS, null, TS.toInt(),
+                        inactiveImage = Assets.trapDisabled,
+                        riseFrames = Assets.trapRiseFrames
+                    )
+                    entities.add(trap)
+                    arenaTraps.add(trap)
+                    entities.add(TrapTrigger(refLink, tx * TS, ty * TS, TS.toInt(), TS.toInt()))
                 }
             }
         }
@@ -1016,7 +999,9 @@ class GameState(
         allEntities.add(player)
         // finalBoss este deja in lista de entitati (adaugat in loadLevel3Entities),
         // nu il mai adaugam o data ca sa nu fie desenat de doua ori.
-        allEntities.sortByDescending { it.y }
+        // Capcanele sunt pe podea: se desenează primele, altfel una aflată sub jucător
+        // (y mai mic) ar fi desenată peste picioarele lui.
+        allEntities.sortWith(compareBy<Entity> { if (it is Trap) 0 else 1 }.thenByDescending { it.y })
 
         batch.projectionMatrix = camera.combined
         batch.begin()
