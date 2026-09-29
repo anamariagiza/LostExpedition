@@ -140,7 +140,9 @@ class DecorativeObject(
     width: Int,
     height: Int,
     private val image: TextureRegion?,
-    val isInteractable: Boolean = false
+    val isInteractable: Boolean = false,
+    /** true = jucătorul nu poate trece prin obiect (ex. mesele de puzzle). */
+    val isSolid: Boolean = false
 ) : Entity(refLink, x, y, width, height) {
 
     private var dialogueMessage: String? = null

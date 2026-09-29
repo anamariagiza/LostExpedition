@@ -215,6 +215,7 @@ class Player(
                 if (map.isSolidAt(tileXLeft, tileY)) { canMove = false; break }
             }
         }
+        if (canMove && hitsSolidObject(newX + padX, y + padYBot, newX + width - padX, y + height - padYTop)) canMove = false
         if (canMove) x = newX
     }
 
@@ -242,7 +243,19 @@ class Player(
                 if (map.isSolidAt(tileX, tileYBottom)) { canMove = false; break }
             }
         }
+        if (canMove && hitsSolidObject(x + padX, newY + padYBot, x + width - padX, newY + height - padYTop)) canMove = false
         if (canMove) y = newY
+    }
+
+    /** Coliziune cu obiectele solide din nivel (mesele de puzzle), pe aceeași cutie ca la dale. */
+    private fun hitsSolidObject(left: Float, bottom: Float, right: Float, top: Float): Boolean {
+        val entities = refLink.gameState?.getEntities() ?: return false
+        for (e in entities) {
+            if (e is DecorativeObject && e.isSolid &&
+                left < e.x + e.width && right > e.x && bottom < e.y + e.height && top > e.y
+            ) return true
+        }
+        return false
     }
 
     private fun updateAnimations() {

@@ -530,8 +530,10 @@ object Assets {
     private fun getTileImageByGID(gid: Int, tilesetTexture: Texture): TextureRegion? {
         if (gid == 0) return null
 
-        val tileWidth = 32  // Dimensiune standard pentru tile-uri (ajusteaza daca e diferita)
-        val tileHeight = 32
+        // Tileset-urile hărților au dale de 48px (vezi TileConstants.TILE_SIZE). Cu 32 se decupa
+        // o bucată greșită de imagine: cufărul apărea doar ca un capac, capcanele ca fragmente.
+        val tileWidth = com.lostexpedition.game.tiles.TileConstants.TILE_SIZE.toInt()
+        val tileHeight = tileWidth
 
         val columns = tilesetTexture.width / tileWidth
         val index = gid - 1

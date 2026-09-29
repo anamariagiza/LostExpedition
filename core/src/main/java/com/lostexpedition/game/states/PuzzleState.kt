@@ -110,6 +110,10 @@ class PuzzleState(
     private val titleFont: BitmapFont = makeFont((36 * s).toInt(), 3f * s)
     private val textFont: BitmapFont = makeFont((26 * s).toInt(), 2f * s)
     private val bigFont: BitmapFont = makeFont((46 * s).toInt(), 3f * s)
+    // Font fără contur pentru textul scris cu cerneală pe pergament (ghicitoarea): cu
+    // conturul negru al textFont, literele închise la culoare se lipeau și nu se citeau.
+    private val inkFontDelegate = lazy { makeFont((28 * s).toInt(), 0f) }
+    private val inkFont: BitmapFont by inkFontDelegate
 
     private val shapeRenderer = ShapeRenderer()
     private val uiMatrix = Matrix4()
@@ -712,10 +716,10 @@ class PuzzleState(
         }
 
         // Textul ghicitorii, centrat pe pergament, cu word-wrap
-        textFont.color = Color(0.15f, 0.08f, 0.02f, 1f)
+        inkFont.color = Color(0.15f, 0.08f, 0.02f, 1f)
         val textWidth = scrollW * 0.62f
-        val layout = GlyphLayout(textFont, riddle3, textFont.color, textWidth, Align.center, true)
-        textFont.draw(
+        val layout = GlyphLayout(inkFont, riddle3, inkFont.color, textWidth, Align.center, true)
+        inkFont.draw(
             batch, riddle3,
             centerX - textWidth / 2f,
             scrollY + scrollH / 2f + layout.height / 2f,
@@ -894,6 +898,7 @@ class PuzzleState(
         titleFont.dispose()
         textFont.dispose()
         bigFont.dispose()
+        if (inkFontDelegate.isInitialized()) inkFont.dispose()
         shapeRenderer.dispose()
     }
 }

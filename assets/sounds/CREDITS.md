@@ -10,9 +10,9 @@ CC0 does not require attribution. The sources are listed here for transparency a
 | File | Track | Author | Source |
 |---|---|---|---|
 | `music_menu.ogg` | Cathedral in the Forest (ambient loop) | congusbongus | https://opengameart.org/content/cathedral-in-the-forest-ambient-loop |
-| `music_level1.ogg` | I think I'd stay (jungle chill), clean version | Emmntt | https://opengameart.org/content/i-think-id-stay-jungle-chill |
-| `music_level2.ogg` | Dark Cavern Ambient (001) | Paul Wortmann | https://opengameart.org/content/dark-cavern-ambient |
-| `music_level3.ogg` | Jungle Thriller | iamoneabe | https://opengameart.org/content/jungle-thriller |
+| `music_level1.ogg` | Jungle Thriller | iamoneabe | https://opengameart.org/content/jungle-thriller |
+| `music_level2.ogg` | I think I'd stay (jungle chill), clean version | Emmntt | https://opengameart.org/content/i-think-id-stay-jungle-chill |
+| `music_level3.ogg` | Dark Cavern Ambient (001) | Paul Wortmann | https://opengameart.org/content/dark-cavern-ambient |
 
 The music files were re-encoded to OGG Vorbis (quality 3, 44.1 kHz) to keep the APK small.
 

@@ -20,7 +20,7 @@ object SettingsManager {
         set(value) {
             prefs.putBoolean(KEY_MUSIC, value)
             prefs.flush()
-            updateAssets()
+            SoundManager.refreshMusic()
         }
 
     var isSoundEnabled: Boolean
@@ -35,7 +35,8 @@ object SettingsManager {
         set(value) {
             prefs.putFloat(KEY_VOLUME, value.coerceIn(0f, 1f))
             prefs.flush()
-            updateAssets()
+            // Doar volumul se schimbă - piesa continuă de unde era, nu o repornim.
+            SoundManager.updateVolume()
         }
 
     fun updateAssets() {

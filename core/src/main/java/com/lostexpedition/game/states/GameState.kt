@@ -354,7 +354,7 @@ class GameState(
             entities.add(
                 DecorativeObject(
                     refLink, pixelX, pixelY, 96, 48,
-                    TextureRegion(Assets.puzzleTableImage), true
+                    TextureRegion(Assets.puzzleTableImage), true, isSolid = true
                 )
             )
         }
@@ -391,7 +391,7 @@ class GameState(
         entities.add(
             DecorativeObject(
                 refLink, 75f * TS, topDownY(26), TS.toInt(), TS.toInt(),
-                TextureRegion(Assets.puzzleTableImage), true
+                TextureRegion(Assets.puzzleTableImage), true, isSolid = true
             )
         )
 

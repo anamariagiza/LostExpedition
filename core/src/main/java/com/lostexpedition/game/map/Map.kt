@@ -35,9 +35,26 @@ class Map(private val refLink: RefLinks, path: String, private val levelIndex: I
     private val solidGrid: Array<BooleanArray> = Array(width) { BooleanArray(height) }
 
     init {
+        insetTileRegions()
         DebugLogger.log("Map", "Loaded map: $path (${width}x${height} tiles, level $levelIndex)")
         TileFactory.clearCache()
         precomputeSolidGrid()
+    }
+
+    /**
+     * Micșorează coordonatele UV ale fiecărei dale cu o jumătate de pixel. Cu zoom/scalare
+     * nefracționară, GPU-ul poate eșantiona pixeli din dala VECINĂ din tileset, iar la margini
+     * apar linii subțiri între dale (vizibile mai ales la nivelul 3).
+     */
+    private fun insetTileRegions() {
+        for (tileSet in tiledMap.tileSets) {
+            for (tile in tileSet) {
+                val region = tile.textureRegion ?: continue
+                val halfU = 0.5f / region.texture.width
+                val halfV = 0.5f / region.texture.height
+                region.setRegion(region.u + halfU, region.v + halfV, region.u2 - halfU, region.v2 - halfV)
+            }
+        }
     }
 
     private fun precomputeSolidGrid() {

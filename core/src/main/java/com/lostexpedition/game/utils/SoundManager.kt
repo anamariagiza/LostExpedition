@@ -96,6 +96,14 @@ object SoundManager {
 
     /** Chemata cand se schimba setarile (muzica on/off): opreste sau reporneste piesa curenta. */
     fun refreshMusic() {
+        if (!SettingsManager.isMusicEnabled) {
+            music?.stop()
+            music?.dispose()
+            music = null
+            return
+        }
+        // Deja pornita -> o lasam sa continue (nu o luam de la 0)
+        if (music?.isPlaying == true) return
         startMusicIfEnabled()
     }
 
