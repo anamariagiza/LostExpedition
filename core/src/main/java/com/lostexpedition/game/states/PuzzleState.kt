@@ -159,8 +159,10 @@ class PuzzleState(
                 val touchY = Gdx.graphics.height - Gdx.input.y.toFloat()
 
                 if (puzzleSolved && nextPuzzleButtonBounds.contains(touchX, touchY)) {
+                    SoundManager.click()
                     handlePuzzleSuccess()
                 } else if (puzzleFailed && retryButtonBounds.contains(touchX, touchY)) {
+                    SoundManager.click()
                     puzzleSolved = false
                     puzzleFailed = false
                     puzzleActive = true
@@ -224,6 +226,7 @@ class PuzzleState(
                 } else {
                     revealedCards5[firstCardIndex5] = false
                     revealedCards5[secondCardIndex5] = false
+                    SoundManager.playSfx(SoundManager.SFX_CARD_FLIP, 0.6f)  // cărțile se întorc la loc
                 }
                 firstCardIndex5 = -1
                 secondCardIndex5 = -1
@@ -427,6 +430,7 @@ class PuzzleState(
     private fun checkSymbolClick(touchX: Float, touchY: Float) {
         for (i in optionBounds1.indices) {
             if (optionBounds1[i].contains(touchX, touchY)) {
+                SoundManager.click()
                 playerChoice1 = symbols[i]
                 if (symbols[i] == "BOLT") {
                     puzzleSolved = true
@@ -443,6 +447,7 @@ class PuzzleState(
         // Click pe o zona de drop
         for (i in dropZoneBounds2.indices) {
             if (dropZoneBounds2[i].contains(touchX, touchY)) {
+                SoundManager.click()
                 if (selectedGemIndex2 >= 0 && playerOrder2[i] == "?") {
                     playerOrder2[i] = gems[selectedGemIndex2]
                     selectedGemIndex2 = -1
@@ -458,6 +463,7 @@ class PuzzleState(
         val availableGems = gems.filterNot { playerOrder2.contains(it) }
         for (i in gemBounds2.indices) {
             if (i < availableGems.size && gemBounds2[i].contains(touchX, touchY)) {
+                SoundManager.click()
                 val gemIndex = gems.indexOf(availableGems[i])
                 selectedGemIndex2 = if (selectedGemIndex2 == gemIndex) -1 else gemIndex
                 return
@@ -468,6 +474,7 @@ class PuzzleState(
     private fun checkAnswerClick(touchX: Float, touchY: Float) {
         for (i in answerBounds3.indices) {
             if (answerBounds3[i].contains(touchX, touchY)) {
+                SoundManager.click()
                 selectedAnswerIndex3 = i
                 if (i == correctAnswerIndex3) {
                     puzzleSolved = true
@@ -487,6 +494,7 @@ class PuzzleState(
         for (i in cardBounds5.indices) {
             if (cardBounds5[i].contains(touchX, touchY) && !revealedCards5[i]) {
                 revealedCards5[i] = true
+                SoundManager.playSfx(SoundManager.SFX_CARD_FLIP)
                 if (firstCardIndex5 == -1) {
                     firstCardIndex5 = i
                 } else if (secondCardIndex5 == -1 && i != firstCardIndex5) {
@@ -501,6 +509,7 @@ class PuzzleState(
     private fun checkKeypadClick(touchX: Float, touchY: Float) {
         for (i in keypadBounds4.indices) {
             if (keypadBounds4[i].contains(touchX, touchY)) {
+                SoundManager.click()
                 onKeypadPress(keypadLabels4[i])
                 return
             }

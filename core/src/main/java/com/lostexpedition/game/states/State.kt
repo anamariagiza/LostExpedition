@@ -2,6 +2,7 @@ package com.lostexpedition.game.states
 
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.lostexpedition.game.utils.RefLinks
+import com.lostexpedition.game.utils.SoundManager
 
 abstract class State(protected val refLink: RefLinks) {
 
@@ -25,6 +26,8 @@ abstract class State(protected val refLink: RefLinks) {
             // MenuState (getPreviousState()). Dacă o dispunem aici, fonturile ei sunt distruse și
             // textul meniului apare ca dreptunghiuri negre după ieșirea din setări.
             val keepsMenuStateAlive = old is MenuState && state is SettingsState
+            // Ambianța animalelor se aude doar în timpul jocului propriu-zis.
+            if (old is GameState && state !is GameState) SoundManager.pauseLoops()
             if (!keepsGameStateAlive && !keepsMenuStateAlive) {
                 old?.dispose()
             }

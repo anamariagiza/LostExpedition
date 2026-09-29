@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Rectangle
 import com.lostexpedition.game.graphics.Assets
+import com.lostexpedition.game.graphics.UiFont
 import com.lostexpedition.game.utils.RefLinks
 import com.lostexpedition.game.utils.SoundManager
 import kotlin.math.sin
@@ -27,14 +28,13 @@ class MenuState(refLink: RefLinks) : State(refLink) {
     private var selectedOption = 0
     private val buttonBounds = mutableListOf<Rectangle>()
 
-    private val titleFont = BitmapFont().apply {
-        data.setScale(3f)
-        color = Color.YELLOW
-    }
+    // Dimensiunile sunt relative la înălțimea ecranului (1.0 la 720p), ca meniul să arate la fel
+    // pe orice telefon; înainte butoanele aveau pixeli ficși și erau mici pe ecranele 1080p+.
+    private val s = UiFont.scale()
 
-    private val buttonFont = BitmapFont().apply {
-        data.setScale(2f)
-    }
+    private val titleFont: BitmapFont = UiFont.make((64 * s).toInt(), 4f * s, Color.YELLOW)
+
+    private val buttonFont: BitmapFont = UiFont.make((34 * s).toInt(), 2f * s)
 
     private val shapeRenderer = ShapeRenderer()
     private val selectedColor = Color(0.2f, 0.2f, 0.8f, 0.9f)
@@ -142,14 +142,15 @@ class MenuState(refLink: RefLinks) : State(refLink) {
         val title = "LOST EXPEDITION"
         val titleLayout = GlyphLayout(titleFont, title)
         val titleX = (width - titleLayout.width) / 2f
-        titleFont.draw(batch, title, titleX, height - 100f)
+        titleFont.draw(batch, title, titleX, height - 50f * s)
         batch.end()
 
         // ===== DESENARE BUTOANE (Forme) =====
-        val buttonWidth = 400f
-        val buttonHeight = 60f
-        val startY = height / 2f + 50f
-        val gap = 80f
+        val buttonWidth = 440f * s
+        val buttonHeight = 78f * s
+        val gap = 96f * s
+        // Coloana de butoane centrată sub titlu
+        val startY = height / 2f + 2f * gap - buttonHeight / 2f - 40f * s
 
         buttonBounds.clear()
 

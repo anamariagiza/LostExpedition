@@ -139,6 +139,7 @@ class EndGameState(refLink: RefLinks) : State(refLink) {
 
             buttonBounds.forEachIndexed { index, rect ->
                 if (rect.contains(touchX, touchY)) {
+                    SoundManager.click()
                     selectedOption = index
                     executeSelectedOption()
                 }

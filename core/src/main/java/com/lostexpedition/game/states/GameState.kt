@@ -37,6 +37,9 @@ class GameState(
         private const val ANIMAL_DAMAGE_COOLDOWN_MS = 4000L
         private const val TRAP_DAMAGE_COOLDOWN_MS = 2000L
         private const val GLOBAL_ACTIVATION_DELAY_MS = 1000L
+        private const val AMBIENCE_FULL = 2.5f     // dale: animal la volum maxim
+        private const val AMBIENCE_SILENT = 8f     // dale: animal inaudibil
+        private const val AMBIENCE_FADE_SPEED = 2.5f
         private const val OBJECTIVE_HOLD = 1.5f  // secunde în centrul ecranului
         private const val OBJECTIVE_MOVE = 0.5f  // secunde pentru urcarea spre partea de sus
         private const val DOOR_LEFT_POST = 24f
@@ -485,13 +488,16 @@ class GameState(
             val touchY = Gdx.graphics.height - Gdx.input.y.toFloat() // Inversăm Y pentru UI
 
             if (mapButtonBounds.contains(touchX, touchY)) {
+                SoundManager.click()
                 showMiniMapOverlay = !showMiniMapOverlay
             } else if (pauseButtonBounds.contains(touchX, touchY)) {
+                SoundManager.click()
                 // Salvăm jocul înainte de pauză pentru siguranță
                 saveCurrentState()
                 refLink.setState(PauseState(refLink))
                 return // Oprim update-ul curent
             } else if (settingsButtonBounds.contains(touchX, touchY)) {
+                SoundManager.click()
                 saveCurrentState()
                 refLink.setState(SettingsState(refLink))
                 return // Oprim update-ul curent
@@ -556,9 +562,35 @@ class GameState(
         }
 
         updateEntities(delta)
+        updateAnimalAmbience(delta)
 
         // Butonul E e activ doar lângă ceva cu care se poate interacționa (pentru frame-ul următor).
         refLink.touchController.isInteractEnabled = hasInteractionTarget()
+    }
+
+    // Volumul curent al fiecărui animal (se apropie lin de ținta calculată din distanță = fade in/out)
+    private val animalVolumes = HashMap<Animal, Float>()
+
+    private fun updateAnimalAmbience(delta: Float) {
+        val TS = TileConstants.TILE_SIZE
+        val px = player.x + player.width / 2f
+        val py = player.y + player.height / 2f
+        for (e in entities) {
+            if (e !is Animal) continue
+            val (sound, maxVolume) = when (e.type) {
+                Animal.AnimalType.JAGUAR -> SoundManager.AMB_JAGUAR to 0.9f
+                Animal.AnimalType.MONKEY -> SoundManager.AMB_MONKEY to 0.7f
+                Animal.AnimalType.BAT -> SoundManager.AMB_BAT to 0.5f
+            }
+            val distTiles = com.badlogic.gdx.math.Vector2.dst(px, py, e.x + e.width / 2f, e.y + e.height / 2f) / TS
+            // Volum maxim sub AMBIENCE_FULL dale, nimic peste AMBIENCE_SILENT dale, liniar între ele.
+            val closeness = ((AMBIENCE_SILENT - distTiles) / (AMBIENCE_SILENT - AMBIENCE_FULL)).coerceIn(0f, 1f)
+            val target = closeness * maxVolume
+            val current = animalVolumes[e] ?: 0f
+            val next = current + (target - current) * (delta * AMBIENCE_FADE_SPEED).coerceAtMost(1f)
+            animalVolumes[e] = next
+            SoundManager.setLoopVolume("animal_${System.identityHashCode(e)}", sound, next)
+        }
     }
 
     private fun nearbyWoodSign(): DecorativeObject? = entities.firstOrNull {
@@ -893,6 +925,8 @@ class GameState(
         // se scurgă memorie (texturi/tiled map) la fiecare schimbare de nivel.
         currentMap.dispose()
         fogOfWar?.dispose()
+        SoundManager.stopLoops()
+        animalVolumes.clear()
 
         currentLevelIndex = 1
         initLevelInternal(currentLevelIndex, false)
@@ -917,6 +951,8 @@ class GameState(
         // Dispunem harta și fog-of-war-ul vechi înainte să fie suprascrise.
         currentMap.dispose()
         fogOfWar?.dispose()
+        SoundManager.stopLoops()
+        animalVolumes.clear()
 
         currentLevelIndex = 2
         initLevelInternal(currentLevelIndex, false)
@@ -1023,6 +1059,7 @@ class GameState(
     fun getCurrentLevel(): Int = currentLevelIndex
 
     override fun dispose() {
+        SoundManager.stopLoops()
         currentMap.dispose()
         fogOfWar?.dispose()
         miniMapTerrainTexture?.dispose()

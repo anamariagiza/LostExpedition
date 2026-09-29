@@ -13,7 +13,7 @@ class Animal(
     startY: Float,
     private val leftBound: Float,
     private val rightBound: Float,
-    private val type: AnimalType
+    val type: AnimalType
 ) : Entity(refLink, startX, startY, 48, 48) {
 
     enum class AnimalType {

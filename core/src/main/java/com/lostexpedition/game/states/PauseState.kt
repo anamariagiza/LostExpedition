@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Rectangle
 import com.lostexpedition.game.utils.RefLinks
+import com.lostexpedition.game.utils.SoundManager
 
 class PauseState(refLink: RefLinks) : State(refLink) {
 
@@ -40,10 +41,16 @@ class PauseState(refLink: RefLinks) : State(refLink) {
 
             // Verificăm RESUME
             if (buttonBounds[0].contains(touchX, touchY)) {
+                SoundManager.click()
                 resumeGame()
             }
             // Verificăm EXIT
             else if (buttonBounds[1].contains(touchX, touchY)) {
+                SoundManager.click()
+                // GameState-ul a fost ținut în viață pentru RESUME; ieșind în meniu îl eliberăm
+                // (hartă, ceață, font, sunetele animalelor), altfel rămâne în memorie.
+                refLink.gameState?.dispose()
+                refLink.gameState = null
                 refLink.setState(MenuState(refLink))
             }
         }
@@ -62,13 +69,10 @@ class PauseState(refLink: RefLinks) : State(refLink) {
     }
 
     override fun render(batch: SpriteBatch) {
-        // 1. Curățăm ecranul cu o culoare închisă
-        Gdx.gl.glClearColor(0.1f, 0.1f, 0.1f, 1f)
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
-
-        // 2. Setăm matricea de proiecție pentru UI
+        // 1. Fundalul din meniul principal, cu un strat închis peste ca textul să se citească
         batch.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
         shapeRenderer.projectionMatrix = batch.projectionMatrix
+        MenuBackground.draw(batch, shapeRenderer, 0.55f)
 
         // 3. Desenăm butoanele (ShapeRenderer)
         Gdx.gl.glEnable(GL20.GL_BLEND)

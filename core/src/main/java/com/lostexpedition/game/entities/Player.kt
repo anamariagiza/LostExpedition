@@ -71,7 +71,10 @@ class Player(
 
     override fun update() {
         handleInput()
+        val oldX = x
+        val oldY = y
         move()
+        updateFootsteps(x != oldX || y != oldY)
         updateAnimations()
 
         if (isAttacking) {
@@ -154,6 +157,25 @@ class Player(
         // pentru acest frame ca senzația de mișcare să fie identică indiferent de framerate.
         xMove *= Gdx.graphics.deltaTime
         yMove *= Gdx.graphics.deltaTime
+    }
+
+    // Pași: un sunet la fiecare STEP_INTERVAL secunde cât timp jucătorul chiar se deplasează
+    // (nu și când apasă joystick-ul spre un perete), alternând două sunete ca să nu fie monoton.
+    private var stepTimer = 0f
+    private var nextStepLeft = true
+
+    private fun updateFootsteps(moved: Boolean) {
+        if (!moved) {
+            stepTimer = STEP_INTERVAL  // primul pas se aude imediat când pornește
+            return
+        }
+        stepTimer += Gdx.graphics.deltaTime
+        val interval = if (currentSpeed > normalSpeed) STEP_INTERVAL * 0.7f else STEP_INTERVAL
+        if (stepTimer >= interval) {
+            stepTimer = 0f
+            SoundManager.playSfx(if (nextStepLeft) SoundManager.SFX_STEP1 else SoundManager.SFX_STEP2, 0.35f)
+            nextStepLeft = !nextStepLeft
+        }
     }
 
     private fun performAttack() {
@@ -370,5 +392,6 @@ class Player(
 
     private companion object {
         const val DIAGONAL_FACTOR = 0.70710677f // 1/√2
+        const val STEP_INTERVAL = 0.34f
     }
 }

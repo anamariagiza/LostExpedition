@@ -89,6 +89,7 @@ class WordPuzzleState(refLink: RefLinks) : State(refLink) {
 
             for (letter in letters) {
                 if (letter.isVisible && letter.bounds.contains(touchX, touchY)) {
+                    SoundManager.click()
                     currentInput.append(letter.character)
                     letter.isVisible = false
 

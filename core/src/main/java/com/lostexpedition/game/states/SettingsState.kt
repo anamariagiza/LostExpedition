@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Rectangle
 import com.lostexpedition.game.utils.RefLinks
 import com.lostexpedition.game.utils.SettingsManager
+import com.lostexpedition.game.utils.SoundManager
 
 class SettingsState(refLink: RefLinks) : State(refLink) {
 
@@ -62,19 +63,25 @@ class SettingsState(refLink: RefLinks) : State(refLink) {
             val touchX = Gdx.input.x.toFloat()
             val touchY = Gdx.graphics.height - Gdx.input.y.toFloat()
 
+            // Click-ul se redă DUPĂ schimbare: se aude la noul volum, iar la SOUND OFF nu se mai aude.
             if (musicBtnBounds.contains(touchX, touchY)) {
                 SettingsManager.isMusicEnabled = !SettingsManager.isMusicEnabled
+                SoundManager.click()
             }
             else if (soundBtnBounds.contains(touchX, touchY)) {
                 SettingsManager.isSoundEnabled = !SettingsManager.isSoundEnabled
+                SoundManager.click()
             }
             else if (volumeDownBounds.contains(touchX, touchY)) {
                 SettingsManager.masterVolume -= 0.1f
+                SoundManager.click()
             }
             else if (volumeUpBounds.contains(touchX, touchY)) {
                 SettingsManager.masterVolume += 0.1f
+                SoundManager.click()
             }
             else if (backBtnBounds.contains(touchX, touchY)) {
+                SoundManager.click()
                 // ✅ RESTAURĂM PROIECȚIA ÎNAINTE DE IEȘIRE
                 restoreProjection()
                 // Ne întoarcem la ecranul din care am intrat (meniu SAU joc)
@@ -84,14 +91,13 @@ class SettingsState(refLink: RefLinks) : State(refLink) {
     }
 
     override fun render(batch: SpriteBatch) {
-        Gdx.gl.glClearColor(0.15f, 0.15f, 0.2f, 1f)
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
-        Gdx.gl.glEnable(GL20.GL_BLEND)
-
         // ✅ SETĂM PROIECȚIA PENTRU UI (NU O PĂSTRĂM PERMANENT)
         val tempProjection = batch.projectionMatrix.cpy()
         batch.projectionMatrix.setToOrtho2D(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
         shapeRenderer.projectionMatrix = batch.projectionMatrix
+
+        MenuBackground.draw(batch, shapeRenderer, 0.5f)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
 
         // Desenare butoane
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)

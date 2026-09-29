@@ -30,6 +30,14 @@ object SoundManager {
     const val SFX_CHEST = "sfx_chest.ogg"                       // cufarul final se deschide
     const val SFX_VICTORY = "sfx_victory.ogg"                   // ecranul de victorie
     const val SFX_GAMEOVER = "sfx_gameover.ogg"                 // ecranul de game over
+    const val SFX_STEP1 = "sfx_step1.ogg"                       // pasi (alternam doua sunete)
+    const val SFX_STEP2 = "sfx_step2.ogg"
+    const val SFX_CARD_FLIP = "sfx_card_flip.ogg"               // intoarcerea unei carti (puzzle 5)
+
+    // ==================== AMBIENTA ANIMALE (bucle, volum dupa distanta) ====================
+    const val AMB_JAGUAR = "amb_jaguar.ogg"
+    const val AMB_MONKEY = "amb_monkey.ogg"
+    const val AMB_BAT = "amb_bat.ogg"
 
     // ==================== MUZICA (placeholder-e) ====================
     const val MUSIC_MENU = "music_menu.ogg"                     // meniul principal
@@ -45,7 +53,8 @@ object SoundManager {
 
     private val ALL_SFX = listOf(
         SFX_CLICK, SFX_ATTACK, SFX_PLAYER_HURT, SFX_ENEMY_HURT, SFX_KEY, SFX_DOOR,
-        SFX_TRAP, SFX_PUZZLE_SUCCESS, SFX_PUZZLE_FAIL, SFX_CHEST, SFX_VICTORY, SFX_GAMEOVER
+        SFX_TRAP, SFX_PUZZLE_SUCCESS, SFX_PUZZLE_FAIL, SFX_CHEST, SFX_VICTORY, SFX_GAMEOVER,
+        SFX_STEP1, SFX_STEP2, SFX_CARD_FLIP, AMB_JAGUAR, AMB_MONKEY, AMB_BAT
     )
 
     // ==================== EFECTE ====================
@@ -59,9 +68,57 @@ object SoundManager {
         Gdx.app.log("SoundManager", "Efecte preincarcate: ${sounds.count { it.value != null }}/${ALL_SFX.size}")
     }
 
-    fun playSfx(name: String) {
+    /** Sunetul standard de apăsare a unui buton (folosit în toate meniurile și puzzle-urile). */
+    fun click() = playSfx(SFX_CLICK, 0.8f)
+
+    /** [volume] = volumul relativ al efectului (ex. pașii mai încet), înmulțit cu volumul master. */
+    fun playSfx(name: String, volume: Float = 1f) {
         if (!SettingsManager.isSoundEnabled) return
-        loadSfx(name)?.play(SettingsManager.masterVolume)
+        loadSfx(name)?.play(SettingsManager.masterVolume * volume)
+    }
+
+    // ==================== BUCLE (ambianta animalelor) ====================
+    // cheie unica (ex. un animal anume) -> (sunet, id-ul instantei care ruleaza in bucla)
+    private val loops = HashMap<String, Pair<Sound, Long>>()
+    private var loopsPaused = false
+
+    /**
+     * Setează volumul unei bucle identificate prin [key] (o pornește la prima folosire).
+     * [volume] e relativ (0..1) și se înmulțește cu volumul master; cu sunetul oprit din
+     * Setări bucla rămâne pornită dar mută, ca să revină imediat când e reactivat.
+     */
+    fun setLoopVolume(key: String, name: String, volume: Float) {
+        resumeLoops()
+        val finalVolume = if (SettingsManager.isSoundEnabled) volume * SettingsManager.masterVolume else 0f
+        val existing = loops[key]
+        if (existing == null) {
+            if (finalVolume <= 0.001f) return
+            val sound = loadSfx(name) ?: return
+            val id = sound.loop(finalVolume)
+            if (id != -1L) loops[key] = sound to id
+            return
+        }
+        existing.first.setVolume(existing.second, finalVolume)
+    }
+
+    /** Oprește temporar toate buclele (pauză, puzzle, setări) - reiau la următorul setLoopVolume. */
+    fun pauseLoops() {
+        if (loopsPaused) return
+        loops.values.forEach { (sound, id) -> sound.pause(id) }
+        loopsPaused = true
+    }
+
+    private fun resumeLoops() {
+        if (!loopsPaused) return
+        loops.values.forEach { (sound, id) -> sound.resume(id) }
+        loopsPaused = false
+    }
+
+    /** Oprește definitiv buclele (schimbare de nivel / ieșire din joc). */
+    fun stopLoops() {
+        loops.values.forEach { (sound, id) -> sound.stop(id) }
+        loops.clear()
+        loopsPaused = false
     }
 
     private fun loadSfx(name: String): Sound? = sounds.getOrPut(name) {
@@ -148,6 +205,7 @@ object SoundManager {
     }
 
     fun dispose() {
+        stopLoops()
         sounds.values.forEach { it?.dispose() }
         sounds.clear()
         missingLogged.clear()

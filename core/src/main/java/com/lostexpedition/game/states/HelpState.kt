@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Rectangle
 import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.utils.RefLinks
+import com.lostexpedition.game.utils.SoundManager
 
 class HelpState(refLink: RefLinks) : State(refLink) {
 
@@ -64,6 +65,7 @@ class HelpState(refLink: RefLinks) : State(refLink) {
             val touchY = Gdx.graphics.height - Gdx.input.y.toFloat()
 
             if (backBtnBounds.contains(touchX, touchY)) {
+                SoundManager.click()
                 refLink.setState(MenuState(refLink))
             }
         }

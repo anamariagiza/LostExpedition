@@ -32,5 +32,16 @@ The music files were re-encoded to OGG Vorbis (quality 3, 44.1 kHz) to keep the 
 | `sfx_trap.ogg` | `impactMetal_heavy_000.ogg` | Impact Sounds |
 | `sfx_victory.ogg` | `Steel jingles/jingles_STEEL02.ogg` | [Music Jingles](https://kenney.nl/assets/music-jingles) |
 | `sfx_gameover.ogg` | `Pizzicato jingles/jingles_PIZZI03.ogg` | Music Jingles |
+| `sfx_step1.ogg` | `footstep00.ogg` | RPG Audio |
+| `sfx_step2.ogg` | `footstep01.ogg` | RPG Audio |
+| `sfx_card_flip.ogg` | `card-place-1.ogg` | [Casino Audio](https://kenney.nl/assets/casino-audio) |
+
+## Animal ambience (level 1)
+
+| File | Made from | Author | Source |
+|---|---|---|---|
+| `amb_jaguar.ogg` | `bear_01.ogg` + `bear_02.ogg` growls, with pauses (looped) | AntumDeluge | https://opengameart.org/content/bear-growls |
+| `amb_monkey.ogg` | `gorilla_grunt.ogg`, pitched up 1.7x, with a pause (looped) | AntumDeluge | https://opengameart.org/content/gorilla-sounds |
+| `amb_bat.ogg` | Three synthesized high-pitched chirps (generated with ffmpeg for this game) | — | original |
 
 To swap a sound, replace the file and keep the same name. `SoundManager.kt` loads the files by name.
