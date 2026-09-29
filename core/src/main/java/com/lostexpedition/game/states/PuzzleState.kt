@@ -28,7 +28,11 @@ class PuzzleState(
         private const val TIME_LIMIT_MS = 60000L
         private const val MESSAGE_DURATION_MS = 2000L
         private const val MAX_WRONG_ATTEMPTS = 3
-        private const val TOTAL_QUESTIONS_4 = 6
+        private const val SIMON_START_LENGTH = 3
+        private const val SIMON_FINAL_LENGTH = 6      // 4 runde: 3, 4, 5, 6 simboluri
+        private const val SIMON_ON = 0.55f            // cât stă aprins un simbol la afișare (s)
+        private const val SIMON_OFF = 0.2f            // pauza dintre simboluri (s)
+        private const val SIMON_START_DELAY = 0.8f
         private const val CARD_REVEAL_DURATION_MS = 1000L
     }
 
@@ -86,16 +90,19 @@ class PuzzleState(
     )
     private val correctRiddleAnswers = intArrayOf(0, 1)
 
-    // Puzzle 4
-    private val questions4 = mutableListOf<String>()
-    private val answers4 = mutableListOf<Int>()
-    private var playerInput4 = ""
-    private var currentQuestionIndex4 = 0
-    private var correctAnswersCount4 = 0
-    private var lastAnswerStatus4 = ""
-    private var lastStatusTime4 = 0L
-    private val keypadLabels4 = arrayOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "DEL", "0", "OK")
-    private val keypadBounds4 = List(keypadLabels4.size) { Rectangle() }
+    // Puzzle 4: secvența de simboluri (stil "Simon"). Se aprind simbolurile într-o ordine,
+    // jucătorul o repetă; fiecare rundă adaugă un simbol (de la 3 la 6).
+    private val simonSequence = mutableListOf<Int>()
+    private var simonShowing = false        // true = jocul arată secvența, atingerile sunt ignorate
+    private var simonShowTimer = 0f         // < 0 = scurtă pauză înainte de afișare
+    private var simonLastShownStep = -1
+    private var simonInputIndex = 0
+    private var simonLitPad = -1            // simbolul aprins acum (-1 = niciunul)
+    private var simonLitTimer = 0f
+    private var simonWrong = 0
+    private var simonStatus = ""
+    private var simonStatusTime = 0L
+    private val simonPadBounds = List(4) { Rectangle() }
 
     // Puzzle 5
     private val cardLayout5 = mutableListOf<Int>()
@@ -178,6 +185,8 @@ class PuzzleState(
         }
 
         if (puzzleActive) {
+            // Cât timp jocul arată secvența, cronometrul stă pe loc.
+            if (puzzleId == 4 && simonShowing) puzzleStartTime += (delta * 1000f).toLong()
             if (clockMs - puzzleStartTime > TIME_LIMIT_MS) {
                 puzzleFailed = true
                 puzzleActive = false
@@ -203,16 +212,7 @@ class PuzzleState(
                 }
             }
 
-            // Auto-validare pentru puzzle 4
-            if (puzzleId == 4 && currentQuestionIndex4 >= TOTAL_QUESTIONS_4) {
-                puzzleSolved = true
-                puzzleActive = false
-            }
-
-            if (puzzleId == 4 && lastAnswerStatus4.isNotEmpty() &&
-                clockMs - lastStatusTime4 > MESSAGE_DURATION_MS) {
-                lastAnswerStatus4 = ""
-            }
+            if (puzzleId == 4) updateSimon(delta)
 
             // Potrivirea cartilor pentru puzzle 5
             if (puzzleId == 5 && cardRevealTime5 > 0 &&
@@ -367,26 +367,13 @@ class PuzzleState(
                 selectedAnswerIndex3 = -1
             }
             4 -> {
-                currentPuzzleTitle = "Math Game"
-                currentObjective = "Solve 6 problems in 60 seconds"
-                questions4.clear()
-                answers4.clear()
-                currentQuestionIndex4 = 0
-                correctAnswersCount4 = 0
-                playerInput4 = ""
-                lastAnswerStatus4 = ""
-                repeat(3) {
-                    val a = Random.nextInt(1, 51)
-                    val b = Random.nextInt(1, 51)
-                    questions4.add("$a + $b = ?")
-                    answers4.add(a + b)
-                }
-                repeat(3) {
-                    val a = Random.nextInt(20, 51)
-                    val b = Random.nextInt(1, a - 9)
-                    questions4.add("$a - $b = ?")
-                    answers4.add(a - b)
-                }
+                currentPuzzleTitle = "Ancient Sequence"
+                currentObjective = "Watch the symbols light up, then repeat the sequence"
+                simonSequence.clear()
+                repeat(SIMON_START_LENGTH) { simonSequence.add(Random.nextInt(4)) }
+                simonWrong = 0
+                simonStatus = ""
+                startSimonPlayback()
             }
             5 -> {
                 currentPuzzleTitle = "Find the Pair"
@@ -410,7 +397,7 @@ class PuzzleState(
 
     private fun handleInput() {
         if (puzzleId == 4) {
-            handleMathKeyboard()
+            handleSimonKeyboard()
         }
 
         if (Gdx.input.justTouched()) {
@@ -421,7 +408,7 @@ class PuzzleState(
                 1 -> checkSymbolClick(touchX, touchY)
                 2 -> checkGemClick(touchX, touchY)
                 3 -> checkAnswerClick(touchX, touchY)
-                4 -> checkKeypadClick(touchX, touchY)
+                4 -> checkSimonClick(touchX, touchY)
                 5 -> checkCardClick(touchX, touchY)
             }
         }
@@ -506,57 +493,87 @@ class PuzzleState(
         }
     }
 
-    private fun checkKeypadClick(touchX: Float, touchY: Float) {
-        for (i in keypadBounds4.indices) {
-            if (keypadBounds4[i].contains(touchX, touchY)) {
-                SoundManager.click()
-                onKeypadPress(keypadLabels4[i])
+    private fun startSimonPlayback() {
+        simonShowing = true
+        simonShowTimer = -SIMON_START_DELAY
+        simonLastShownStep = -1
+        simonInputIndex = 0
+        simonLitPad = -1
+    }
+
+    private fun updateSimon(delta: Float) {
+        if (simonStatus.isNotEmpty() && clockMs - simonStatusTime > MESSAGE_DURATION_MS) simonStatus = ""
+
+        if (!simonShowing) {
+            if (simonLitTimer > 0f) {
+                simonLitTimer -= delta
+                if (simonLitTimer <= 0f) simonLitPad = -1
+            }
+            return
+        }
+
+        simonShowTimer += delta
+        if (simonShowTimer < 0f) return
+        val step = (simonShowTimer / (SIMON_ON + SIMON_OFF)).toInt()
+        if (step >= simonSequence.size) {
+            simonShowing = false
+            simonLitPad = -1
+            return
+        }
+        val inStep = simonShowTimer - step * (SIMON_ON + SIMON_OFF)
+        simonLitPad = if (inStep < SIMON_ON) simonSequence[step] else -1
+        if (step != simonLastShownStep) {
+            simonLastShownStep = step
+            SoundManager.playSfx(SoundManager.SFX_TONES[simonSequence[step]])
+        }
+    }
+
+    private fun checkSimonClick(touchX: Float, touchY: Float) {
+        if (simonShowing) return
+        for (i in simonPadBounds.indices) {
+            if (simonPadBounds[i].contains(touchX, touchY)) {
+                onSimonPad(i)
                 return
             }
         }
     }
 
-    private fun onKeypadPress(label: String) {
-        when (label) {
-            "DEL" -> if (playerInput4.isNotEmpty()) playerInput4 = playerInput4.dropLast(1)
-            "OK" -> submitMathAnswer()
-            else -> if (playerInput4.length < 4) playerInput4 += label
+    /** Suport pentru tastatura fizică (desktop): tastele 1-4. */
+    private fun handleSimonKeyboard() {
+        if (simonShowing) return
+        for (i in 0..3) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1 + i)) onSimonPad(i)
         }
     }
 
-    private fun submitMathAnswer() {
-        if (currentQuestionIndex4 >= TOTAL_QUESTIONS_4) return
-        val playerAnswer = playerInput4.toIntOrNull()
-        if (playerAnswer == null) {
-            playerInput4 = ""
-            return
-        }
+    private fun onSimonPad(pad: Int) {
+        simonLitPad = pad
+        simonLitTimer = 0.25f
+        SoundManager.playSfx(SoundManager.SFX_TONES[pad])
 
-        if (playerAnswer == answers4[currentQuestionIndex4]) {
-            correctAnswersCount4++
-            lastAnswerStatus4 = "CORRECT!"
-            currentQuestionIndex4++
-        } else {
-            lastAnswerStatus4 = "WRONG!"
-        }
-        lastStatusTime4 = clockMs
-        playerInput4 = ""
-    }
-
-    /** Suport pastrat pentru tastatura fizica (varianta desktop). */
-    private fun handleMathKeyboard() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-            submitMathAnswer()
-            return
-        }
-        for (i in 0..9) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_0 + i) ||
-                Gdx.input.isKeyJustPressed(Input.Keys.NUMPAD_0 + i)) {
-                if (playerInput4.length < 4) playerInput4 += i.toString()
+        if (pad == simonSequence[simonInputIndex]) {
+            simonInputIndex++
+            if (simonInputIndex == simonSequence.size) {
+                if (simonSequence.size >= SIMON_FINAL_LENGTH) {
+                    puzzleSolved = true
+                    puzzleActive = false
+                } else {
+                    simonStatus = "CORRECT!"
+                    simonStatusTime = clockMs
+                    simonSequence.add(Random.nextInt(4))
+                    startSimonPlayback()
+                }
             }
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.BACKSPACE) && playerInput4.isNotEmpty()) {
-            playerInput4 = playerInput4.dropLast(1)
+        } else {
+            simonWrong++
+            if (simonWrong >= MAX_WRONG_ATTEMPTS) {
+                puzzleFailed = true
+                puzzleActive = false
+            } else {
+                simonStatus = "WRONG! Watch again (${MAX_WRONG_ATTEMPTS - simonWrong} tries left)"
+                simonStatusTime = clockMs
+                startSimonPlayback()
+            }
         }
     }
 
@@ -757,67 +774,45 @@ class PuzzleState(
         }
     }
 
-    // ==================== PUZZLE 4: MATH GAME ====================
+    // ==================== PUZZLE 4: ANCIENT SEQUENCE ====================
     private fun drawPuzzle4(batch: SpriteBatch, centerX: Float, centerY: Float) {
-        if (currentQuestionIndex4 >= TOTAL_QUESTIONS_4) return
-
         val height = Gdx.graphics.height.toFloat()
 
-        // Progres
+        // Runda și ce are de făcut jucătorul
+        val round = simonSequence.size - SIMON_START_LENGTH + 1
+        val rounds = SIMON_FINAL_LENGTH - SIMON_START_LENGTH + 1
         textFont.color = Color.WHITE
-        drawCentered(batch, textFont, "Question ${currentQuestionIndex4 + 1}/$TOTAL_QUESTIONS_4", centerX, height - 120f * s)
+        drawCentered(batch, textFont, "Round $round/$rounds", centerX, height - 115f * s)
+        val hint = if (simonShowing) "Watch..." else "Your turn!  ${simonInputIndex}/${simonSequence.size}"
+        bigFont.color = if (simonShowing) Color.LIGHT_GRAY else Color.YELLOW
+        drawCentered(batch, bigFont, hint, centerX, height - 160f * s)
 
-        // Intrebarea
-        bigFont.color = Color.WHITE
-        drawCentered(batch, bigFont, questions4[currentQuestionIndex4], centerX, height - 180f * s)
+        // 4 plăci cu simboluri, pe un rând
+        val symbolImages = listOf(Assets.puzzle1Sun, Assets.puzzle1Moon, Assets.puzzle1Star, Assets.puzzle1Bolt)
+        val padSize = 170f * s
+        val gap = 36f * s
+        val totalW = 4 * padSize + 3 * gap
+        val startX = centerX - totalW / 2f
+        val padY = centerY - padSize / 2f - 50f * s
 
-        // Caseta de raspuns
-        val boxW = 300f * s
-        val boxH = 70f * s
-        val boxX = centerX - boxW / 2f
-        val boxY = height - 300f * s
-        drawRectFilled(batch, boxX, boxY, boxW, boxH, Color(0.1f, 0.1f, 0.2f, 1f))
-        drawRectLine(batch, boxX, boxY, boxW, boxH, Color.GOLD)
+        for (i in 0 until 4) {
+            val lit = i == simonLitPad
+            val grow = if (lit) 10f * s else 0f
+            val x = startX + i * (padSize + gap) - grow
+            val y = padY - grow
+            val size = padSize + grow * 2f
+            simonPadBounds[i].set(startX + i * (padSize + gap), padY, padSize, padSize)
 
-        bigFont.color = Color.YELLOW
-        val inputText = if (playerInput4.isEmpty()) "_" else playerInput4
-        val il = GlyphLayout(bigFont, inputText)
-        bigFont.draw(batch, inputText, centerX - il.width / 2f, boxY + (boxH + il.height) / 2f)
-
-        // Status CORRECT/WRONG
-        if (lastAnswerStatus4.isNotEmpty()) {
-            textFont.color = if (lastAnswerStatus4 == "CORRECT!") Color.GREEN else Color.RED
-            drawCentered(batch, textFont, lastAnswerStatus4, centerX, boxY - 16f * s)
+            drawRectFilled(batch, x, y, size, size, if (lit) Color(0.95f, 0.8f, 0.3f, 1f) else Color(0.15f, 0.15f, 0.35f, 1f))
+            drawRectLine(batch, x, y, size, size, if (lit) Color.WHITE else Color.GOLD)
+            batch.setColor(1f, 1f, 1f, if (lit || !simonShowing) 1f else 0.55f)
+            symbolImages[i]?.let { batch.draw(it, x + 18f * s, y + 18f * s, size - 36f * s, size - 36f * s) }
+            batch.setColor(1f, 1f, 1f, 1f)
         }
 
-        // Tastatura numerica on-screen
-        val keySize = 92f * s
-        val keyGap = 14f * s
-        val keypadW = 3 * keySize + 2 * keyGap
-        val keypadX = centerX - keypadW / 2f
-        val keypadTopY = boxY - 60f * s
-
-        for (i in keypadLabels4.indices) {
-            val row = i / 3
-            val col = i % 3
-            val x = keypadX + col * (keySize + keyGap)
-            val y = keypadTopY - (row + 1) * (keySize + keyGap)
-
-            keypadBounds4[i].set(x, y, keySize, keySize)
-
-            val label = keypadLabels4[i]
-            val bg = when (label) {
-                "OK" -> Color(0f, 0.45f, 0f, 1f)
-                "DEL" -> Color(0.5f, 0.15f, 0.15f, 1f)
-                else -> Color(0.2f, 0.2f, 0.45f, 1f)
-            }
-            drawRectFilled(batch, x, y, keySize, keySize, bg)
-            drawRectLine(batch, x, y, keySize, keySize, Color.WHITE)
-
-            val keyFont = if (label == "DEL" || label == "OK") textFont else bigFont
-            keyFont.color = Color.WHITE
-            val l = GlyphLayout(keyFont, label)
-            keyFont.draw(batch, label, x + (keySize - l.width) / 2f, y + (keySize + l.height) / 2f)
+        if (simonStatus.isNotEmpty()) {
+            textFont.color = if (simonStatus == "CORRECT!") Color.GREEN else Color.RED
+            drawCentered(batch, textFont, simonStatus, centerX, padY - 30f * s)
         }
     }
 
@@ -829,17 +824,24 @@ class PuzzleState(
         textFont.color = Color.WHITE
         textFont.draw(batch, "Pairs: $pairsFound5/8", 20f * s, height - 70f * s)
 
-        // Grila de carti 4x4
-        val cardW = 84f * s
-        val cardH = cardW * 84f / 60f    // pastreaza proportiile cartii (60x84)
-        val gap = 14f * s
-        val gridW = 4 * cardW + 3 * gap
+        // Grila de cărți 8 x 2, cât mai mari: lățimea e limitată de ecran (8 cărți pe rând),
+        // înălțimea de spațiul de sub titlu (2 rânduri); păstrăm proporțiile cărții (60x84).
+        val width = Gdx.graphics.width.toFloat()
+        val gap = 16f * s
+        val topMargin = 110f * s
+        val bottomMargin = 30f * s
+        val maxWByWidth = (width * 0.94f - 7 * gap) / 8f
+        val maxHByHeight = (height - topMargin - bottomMargin - gap) / 2f
+        val cardW = minOf(maxWByWidth, maxHByHeight * 60f / 84f)
+        val cardH = cardW * 84f / 60f
+        val gridW = 8 * cardW + 7 * gap
+        val gridH = 2 * cardH + gap
         val gridX = centerX - gridW / 2f
-        val gridTopY = height - 110f * s
+        val gridTopY = height - topMargin - ((height - topMargin - bottomMargin) - gridH) / 2f
 
         for (i in 0 until 16) {
-            val row = i / 4
-            val col = i % 4
+            val row = i / 8
+            val col = i % 8
             val x = gridX + col * (cardW + gap)
             val y = gridTopY - (row + 1) * cardH - row * gap
 

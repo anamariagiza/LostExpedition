@@ -33,6 +33,8 @@ object SoundManager {
     const val SFX_STEP1 = "sfx_step1.ogg"                       // pasi (alternam doua sunete)
     const val SFX_STEP2 = "sfx_step2.ogg"
     const val SFX_CARD_FLIP = "sfx_card_flip.ogg"               // intoarcerea unei carti (puzzle 5)
+    // Notele celor 4 simboluri din puzzle-ul cu secventa (Sun, Moon, Star, Bolt)
+    val SFX_TONES = listOf("sfx_tone1.ogg", "sfx_tone2.ogg", "sfx_tone3.ogg", "sfx_tone4.ogg")
 
     // ==================== AMBIENTA ANIMALE (bucle, volum dupa distanta) ====================
     const val AMB_JAGUAR = "amb_jaguar.ogg"
@@ -55,7 +57,7 @@ object SoundManager {
         SFX_CLICK, SFX_ATTACK, SFX_PLAYER_HURT, SFX_ENEMY_HURT, SFX_KEY, SFX_DOOR,
         SFX_TRAP, SFX_PUZZLE_SUCCESS, SFX_PUZZLE_FAIL, SFX_CHEST, SFX_VICTORY, SFX_GAMEOVER,
         SFX_STEP1, SFX_STEP2, SFX_CARD_FLIP, AMB_JAGUAR, AMB_MONKEY, AMB_BAT
-    )
+    ) + SFX_TONES
 
     // ==================== EFECTE ====================
     /**

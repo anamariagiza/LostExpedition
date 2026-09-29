@@ -35,6 +35,7 @@ The music files were re-encoded to OGG Vorbis (quality 3, 44.1 kHz) to keep the 
 | `sfx_step1.ogg` | `footstep00.ogg` | RPG Audio |
 | `sfx_step2.ogg` | `footstep01.ogg` | RPG Audio |
 | `sfx_card_flip.ogg` | `card-place-1.ogg` | [Casino Audio](https://kenney.nl/assets/casino-audio) |
+| `sfx_tone1.ogg` … `sfx_tone4.ogg` | Four soft tones (G, B, D, F) for the sequence puzzle, synthesized with ffmpeg for this game | original |
 
 ## Animal ambience (level 1)
 
