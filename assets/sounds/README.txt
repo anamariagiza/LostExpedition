@@ -1,6 +1,9 @@
 SUNETE - LOST EXPEDITION
 =========================
 
+Toate fisierele de mai jos sunt deja adaugate (CC0 - vezi CREDITS.md pentru surse).
+Ca sa schimbi un sunet, inlocuieste fisierul pastrand ACELASI nume.
+
 Pune aici fisierele audio cu EXACT aceste nume (format .ogg recomandat,
 .mp3 si .wav merg si ele daca redenumesti extensia si in SoundManager.kt).
 

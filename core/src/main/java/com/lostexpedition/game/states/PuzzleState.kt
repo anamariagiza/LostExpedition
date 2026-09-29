@@ -35,6 +35,10 @@ class PuzzleState(
     /** Factor de scalare UI: 1.0 la 720p, ~1.5 pe un telefon 1080p. */
     private val s: Float = Gdx.graphics.height / 720f
 
+    // Ceasul puzzle-ului (ms), avansat doar din update(delta): timpul nu curge cât timp
+    // aplicația e în fundal (ex. un apel primit în timpul puzzle-ului).
+    private var clockMs = 0L
+
     private var puzzleStartTime = 0L
     private var puzzleActive = false
     private var puzzleSolved = false
@@ -138,6 +142,7 @@ class PuzzleState(
     }
 
     override fun update(delta: Float) {
+        clockMs += (delta * 1000f).toLong()
         if (puzzleSolved || puzzleFailed) {
             if (!resultSoundPlayed) {
                 resultSoundPlayed = true
@@ -167,7 +172,7 @@ class PuzzleState(
         }
 
         if (puzzleActive) {
-            if (System.currentTimeMillis() - puzzleStartTime > TIME_LIMIT_MS) {
+            if (clockMs - puzzleStartTime > TIME_LIMIT_MS) {
                 puzzleFailed = true
                 puzzleActive = false
             } else {
@@ -199,13 +204,13 @@ class PuzzleState(
             }
 
             if (puzzleId == 4 && lastAnswerStatus4.isNotEmpty() &&
-                System.currentTimeMillis() - lastStatusTime4 > MESSAGE_DURATION_MS) {
+                clockMs - lastStatusTime4 > MESSAGE_DURATION_MS) {
                 lastAnswerStatus4 = ""
             }
 
             // Potrivirea cartilor pentru puzzle 5
             if (puzzleId == 5 && cardRevealTime5 > 0 &&
-                System.currentTimeMillis() - cardRevealTime5 > CARD_REVEAL_DURATION_MS) {
+                clockMs - cardRevealTime5 > CARD_REVEAL_DURATION_MS) {
                 if (cardLayout5[firstCardIndex5] == cardLayout5[secondCardIndex5]) {
                     pairsFound5++
                     if (pairsFound5 >= 8) {
@@ -255,7 +260,7 @@ class PuzzleState(
 
         // Timer
         if (puzzleActive) {
-            val timeLeft = TIME_LIMIT_MS - (System.currentTimeMillis() - puzzleStartTime)
+            val timeLeft = TIME_LIMIT_MS - (clockMs - puzzleStartTime)
             textFont.color = Color.RED
             textFont.draw(batch, "Time: %.1f s".format(timeLeft / 1000f), 20f * s, height - 24f * s)
         }
@@ -323,7 +328,7 @@ class PuzzleState(
 
     private fun generatePuzzle() {
         puzzleActive = true
-        puzzleStartTime = System.currentTimeMillis()
+        puzzleStartTime = clockMs
         resultSoundPlayed = false
 
         when (puzzleId) {
@@ -482,7 +487,7 @@ class PuzzleState(
                     firstCardIndex5 = i
                 } else if (secondCardIndex5 == -1 && i != firstCardIndex5) {
                     secondCardIndex5 = i
-                    cardRevealTime5 = System.currentTimeMillis()
+                    cardRevealTime5 = clockMs
                 }
                 break
             }
@@ -521,7 +526,7 @@ class PuzzleState(
         } else {
             lastAnswerStatus4 = "WRONG!"
         }
-        lastStatusTime4 = System.currentTimeMillis()
+        lastStatusTime4 = clockMs
         playerInput4 = ""
     }
 

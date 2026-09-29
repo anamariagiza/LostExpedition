@@ -30,6 +30,7 @@ You play as an explorer navigating through tile-based maps across 3 levels. Coll
 - **Settings** — configurable options persisted across sessions
 - **State machine** — Menu, Loading, Game, Pause, Puzzle, WordPuzzle, GameOver, EndGame, About, Help states
 - **Responsive viewport** — maintains a fixed game width (1500px) and adjusts height to screen aspect ratio
+- **Sound & music** — ambient music per level and sound effects, all CC0 (see [`assets/sounds/CREDITS.md`](assets/sounds/CREDITS.md))
 - **Debug logger** utility for development
 
 ---

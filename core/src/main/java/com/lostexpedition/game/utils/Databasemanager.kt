@@ -8,6 +8,9 @@ class DatabaseManager {
     private val PREFS_GAME = "LostExpeditionSave"
     private val PREFS_SETTINGS = "LostExpeditionSettings"
 
+    /** 6 uși de nivel 2 (index 0..5) + ușa finală de nivel 3 (index 6). */
+    private val DOOR_COUNT = 7
+
     private fun getGamePrefs(): Preferences {
         return Gdx.app.getPreferences(PREFS_GAME)
     }
@@ -32,7 +35,9 @@ class DatabaseManager {
         hasTalisman: Boolean,
         caveEntranceUnlocked: Boolean,
         bossDefeated: Boolean,
-        finalChestCanInteract: Boolean
+        finalChestCanInteract: Boolean,
+        doorsOpened: BooleanArray,
+        wordPuzzleSolved: Boolean
     ) {
         val prefs = getGamePrefs()
         prefs.putInteger("levelIndex", levelIndex)
@@ -52,6 +57,8 @@ class DatabaseManager {
         prefs.putBoolean("caveEntranceUnlocked", caveEntranceUnlocked)
         prefs.putBoolean("bossDefeated", bossDefeated)
         prefs.putBoolean("finalChestCanInteract", finalChestCanInteract)
+        prefs.putString("doorsOpened", doorsOpened.joinToString(","))
+        prefs.putBoolean("wordPuzzleSolved", wordPuzzleSolved)
 
         prefs.flush() // Scrie fizic pe disc
         Gdx.app.log("DatabaseManager", "Joc salvat complet!")
@@ -72,15 +79,10 @@ class DatabaseManager {
         val key = prefs.getBoolean("hasKey", false)
         val puzzles = prefs.getString("puzzlesSolved", "")
 
-        // Decodăm array-ul de chei
-        val doorKeysStr = prefs.getString("hasDoorKeys", "false,false,false,false,false,false,false")
-        val doorKeysList = doorKeysStr.split(",").map { it.toBoolean() }.toBooleanArray()
-
-        // Asigurăm dimensiunea corectă (7 chei)
-        val finalDoorKeys = BooleanArray(7)
-        for (i in finalDoorKeys.indices) {
-            if (i < doorKeysList.size) finalDoorKeys[i] = doorKeysList[i]
-        }
+        val finalDoorKeys = decodeBoolArray(prefs.getString("hasDoorKeys", ""), DOOR_COUNT)
+        // Salvările mai vechi nu au aceste chei -> toate ușile închise / puzzle nerezolvat.
+        val doorsOpened = decodeBoolArray(prefs.getString("doorsOpened", ""), DOOR_COUNT)
+        val wordPuzzleSolved = prefs.getBoolean("wordPuzzleSolved", false)
 
         val hasTalisman = prefs.getBoolean("hasTalisman", false)
         val caveEntranceUnlocked = prefs.getBoolean("caveEntranceUnlocked", false)
@@ -91,7 +93,8 @@ class DatabaseManager {
         return listOf(
             PlayerData(
                 levelIndex, score, px, py, hp, key, finalDoorKeys, puzzles,
-                hasTalisman, caveEntranceUnlocked, bossDefeated, finalChestCanInteract
+                hasTalisman, caveEntranceUnlocked, bossDefeated, finalChestCanInteract,
+                doorsOpened, wordPuzzleSolved
             )
         )
     }
@@ -116,6 +119,12 @@ class DatabaseManager {
         return SettingsData(s, m, v)
     }
 
+    /** Decodează "true,false,..." într-un array de dimensiune fixă (lipsurile rămân false). */
+    private fun decodeBoolArray(str: String, size: Int): BooleanArray {
+        val values = str.split(",").filter { it.isNotBlank() }.map { it.trim().toBoolean() }
+        return BooleanArray(size) { i -> i < values.size && values[i] }
+    }
+
     // Metode legacy (nu fac nimic, doar ca să nu crape apelurile vechi)
     fun connect() {}
     fun disconnect() {}
@@ -137,7 +146,9 @@ data class PlayerData(
     val hasTalisman: Boolean,
     val caveEntranceUnlocked: Boolean,
     val bossDefeated: Boolean,
-    val finalChestCanInteract: Boolean
+    val finalChestCanInteract: Boolean,
+    val doorsOpened: BooleanArray,
+    val wordPuzzleSolved: Boolean
 )
 
 data class SettingsData(
