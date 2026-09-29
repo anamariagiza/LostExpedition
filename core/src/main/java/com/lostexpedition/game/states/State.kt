@@ -21,7 +21,11 @@ abstract class State(protected val refLink: RefLinks) {
             // moarte sau final de joc.
             val keepsGameStateAlive = old is GameState &&
                 (state is PauseState || state is PuzzleState || state is WordPuzzleState || state is SettingsState)
-            if (!keepsGameStateAlive) {
+            // La fel pentru meniu: butonul BACK din Settings se întoarce la ACEEAȘI instanță de
+            // MenuState (getPreviousState()). Dacă o dispunem aici, fonturile ei sunt distruse și
+            // textul meniului apare ca dreptunghiuri negre după ieșirea din setări.
+            val keepsMenuStateAlive = old is MenuState && state is SettingsState
+            if (!keepsGameStateAlive && !keepsMenuStateAlive) {
                 old?.dispose()
             }
             previousState = old

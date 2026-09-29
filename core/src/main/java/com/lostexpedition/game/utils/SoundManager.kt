@@ -43,25 +43,40 @@ object SoundManager {
     private var music: Music? = null
     private var currentTrack: String? = null
 
+    private val ALL_SFX = listOf(
+        SFX_CLICK, SFX_ATTACK, SFX_PLAYER_HURT, SFX_ENEMY_HURT, SFX_KEY, SFX_DOOR,
+        SFX_TRAP, SFX_PUZZLE_SUCCESS, SFX_PUZZLE_FAIL, SFX_CHEST, SFX_VICTORY, SFX_GAMEOVER
+    )
+
     // ==================== EFECTE ====================
+    /**
+     * Încarcă toate efectele dinainte (apelat din LoadingScreenState). Pe Android, Sound
+     * folosește SoundPool, care decodează asincron: un play() imediat după newSound() rămâne
+     * de obicei mut. Preîncărcate la pornire, efectele sunt gata la prima folosire.
+     */
+    fun preloadSfx() {
+        ALL_SFX.forEach { loadSfx(it) }
+        Gdx.app.log("SoundManager", "Efecte preincarcate: ${sounds.count { it.value != null }}/${ALL_SFX.size}")
+    }
+
     fun playSfx(name: String) {
         if (!SettingsManager.isSoundEnabled) return
+        loadSfx(name)?.play(SettingsManager.masterVolume)
+    }
 
-        val sound = sounds.getOrPut(name) {
-            val file = Gdx.files.internal("$SOUNDS_DIR/$name")
-            if (file.exists()) {
-                try {
-                    Gdx.audio.newSound(file)
-                } catch (e: Exception) {
-                    logMissing(name, "nu a putut fi incarcat: ${e.message}")
-                    null
-                }
-            } else {
-                logMissing(name, "lipseste")
+    private fun loadSfx(name: String): Sound? = sounds.getOrPut(name) {
+        val file = Gdx.files.internal("$SOUNDS_DIR/$name")
+        if (file.exists()) {
+            try {
+                Gdx.audio.newSound(file)
+            } catch (e: Exception) {
+                logMissing(name, "nu a putut fi incarcat: ${e.message}")
                 null
             }
+        } else {
+            logMissing(name, "lipseste")
+            null
         }
-        sound?.play(SettingsManager.masterVolume)
     }
 
     // ==================== MUZICA ====================
@@ -94,8 +109,11 @@ object SoundManager {
         music?.dispose()
         music = null
 
-        if (!SettingsManager.isMusicEnabled) return
         val track = currentTrack ?: return
+        if (!SettingsManager.isMusicEnabled) {
+            Gdx.app.log("SoundManager", "Muzica e oprita din Setari - nu pornesc '$track'.")
+            return
+        }
 
         val file = Gdx.files.internal("$SOUNDS_DIR/$track")
         if (!file.exists()) {
@@ -109,6 +127,7 @@ object SoundManager {
                 volume = SettingsManager.masterVolume
                 play()
             }
+            Gdx.app.log("SoundManager", "Pornesc muzica '$track' (volum ${SettingsManager.masterVolume}).")
         } catch (e: Exception) {
             logMissing(track, "nu a putut fi incarcat: ${e.message}")
         }

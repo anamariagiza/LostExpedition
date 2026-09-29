@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.lostexpedition.game.graphics.Assets
 import com.lostexpedition.game.utils.RefLinks
+import com.lostexpedition.game.utils.SoundManager
 
 class LoadingScreenState(refLink: RefLinks) : State(refLink) {
 
@@ -36,6 +37,7 @@ class LoadingScreenState(refLink: RefLinks) : State(refLink) {
             try {
                 println("Loading all game assets...")
                 Assets.load()
+                SoundManager.preloadSfx()
                 assetsLoaded = true
                 progress = 1.0f
                 println("✓ Assets loaded successfully!")
